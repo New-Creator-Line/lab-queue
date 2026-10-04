@@ -54,7 +54,7 @@ export const GROUP_ROSTER: readonly RosterMember[] = rosterSource.map(
       // Keep roster positions in a reserved range so they cannot collide with
       // profiles created by the old manual-registration flow.
       rotationOrder: 1000 + (subgroup === 1 ? listNumber : listNumber - 15),
-      isAdmin: username.toLowerCase() === "qeliuns",
+      isAdmin: ["qeliuns", "dharrisss"].includes(username.toLowerCase()),
     };
   },
 );
