@@ -15,8 +15,10 @@ import {
   GraduationCap,
   LoaderCircle,
   LogOut,
+  Moon,
   RefreshCw,
   ShieldCheck,
+  Sun,
   Users,
   X,
 } from "lucide-react";
@@ -161,6 +163,45 @@ function lessonEndTimestamp(date: string, lessonTime: string) {
   return Date.parse(`${date}T${endTime}:00+03:00`);
 }
 
+function ThemeToggle() {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initial = saved === "dark" || (!saved && prefersDark) ? "dark" : "light";
+    setTheme(initial);
+    if (initial === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  function toggle() {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    localStorage.setItem("theme", next);
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }
+
+  return (
+    <button
+      className="icon-button"
+      type="button"
+      onClick={toggle}
+      title={theme === "light" ? "Включить тёмную тему" : "Включить светлую тему"}
+      aria-label="Переключить тему"
+    >
+      {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+    </button>
+  );
+}
+
 function TelegramLogin({ botUsername }: { botUsername: string | null }) {
   const [botUrl, setBotUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -257,8 +298,11 @@ function LoginScreen({ botUsername, isPreview }: { botUsername: string | null; i
           <span className="brand-mark"><GraduationCap size={22} /></span>
           <span>Очередь 420604</span>
         </div>
-        {isPreview && <span className="nav-pill" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>🟡 Предпросмотр (Preview)</span>}
-        <span className="nav-pill">БГУИР · ФИТУ</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {isPreview && <span className="nav-pill" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>🟡 Предпросмотр (Preview)</span>}
+          <span className="nav-pill">БГУИР · ФИТУ</span>
+          <ThemeToggle />
+        </div>
       </nav>
 
       <section className="hero">
@@ -573,6 +617,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
             {initialUser.photoUrl ? <img src={initialUser.photoUrl} alt="" /> : <span>{initialUser.displayName.slice(0, 1)}</span>}
             <div><strong>{initialUser.displayName}</strong>{initialUser.isAdmin && <small><ShieldCheck size={12} /> {initialUser.isSuperAdmin ? "суперадминистратор" : "администратор"}</small>}</div>
           </div>
+          <ThemeToggle />
           <form action="/api/auth/logout" method="post"><button className="icon-button" title="Выйти"><LogOut size={18} /></button></form>
         </div>
       </header>

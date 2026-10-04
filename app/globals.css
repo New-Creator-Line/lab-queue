@@ -234,3 +234,214 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
   .admin-status { margin-left:51px; }
   .admin-toggle { margin-left:auto; }
 }
+
+/* ================= ТЁМНАЯ ТЕМА (DARK MODE) ================= */
+html.dark, body.dark, .dark {
+  --ink: #f1f5f9;
+  --muted: #94a3b8;
+  --line: #243049;
+  --paper: #0b1120;
+  --blue: #3b82f6;
+}
+html.dark, html.dark body, html.dark .app-shell {
+  background: #0b1120 !important;
+  color: #f1f5f9 !important;
+}
+html.dark .landing-shell {
+  background: #080d19 !important;
+}
+html.dark .landing-shell::before {
+  background: #172554 !important;
+  opacity: 0.3 !important;
+}
+html.dark .app-header, html.dark .landing-nav {
+  background: rgba(11, 17, 32, 0.88) !important;
+  border-bottom-color: #1e293b !important;
+}
+html.dark .nav-pill, html.dark .group-badge {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+}
+html.dark .sidebar {
+  background: #0d1527 !important;
+  border-right-color: #1e293b !important;
+}
+html.dark .sidebar nav button {
+  color: #94a3b8 !important;
+}
+html.dark .sidebar nav button.active {
+  background: #1e293b !important;
+  color: #60a5fa !important;
+}
+html.dark .subject-card,
+html.dark .queue-card,
+html.dark .login-card,
+html.dark .queue-preview,
+html.dark .admin-users-card,
+html.dark .onboarding-card {
+  background: #111c33 !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45) !important;
+}
+html.dark .subject-card.is-past {
+  background: #0d1526 !important;
+  border-color: #1b253b !important;
+}
+html.dark .preview-person,
+html.dark .actual-person {
+  background: #0c1424 !important;
+  border-color: #1e293b !important;
+}
+html.dark .preview-person.is-you,
+html.dark .actual-person.is-me {
+  background: #172554 !important;
+  border-color: #3b82f6 !important;
+}
+html.dark .icon-button,
+html.dark .refresh-button {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+html.dark .icon-button:hover,
+html.dark .refresh-button:hover {
+  background: #334155 !important;
+  color: #ffffff !important;
+}
+html.dark .joined-button {
+  background: #1e293b !important;
+  color: #60a5fa !important;
+}
+html.dark .past-button {
+  background: #1e293b !important;
+  color: #64748b !important;
+}
+html.dark .subgroup-option {
+  background: #111c33 !important;
+  border-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+html.dark .subgroup-option.selected {
+  background: #172554 !important;
+  border-color: #3b82f6 !important;
+}
+html.dark .subgroup-option>span {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+html.dark .telegram-loading {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+}
+html.dark .telegram-retry {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #60a5fa !important;
+}
+html.dark .day-heading {
+  border-bottom-color: #1e293b !important;
+}
+html.dark .card-bottom {
+  border-top-color: #1e293b !important;
+}
+html.dark .position-banner {
+  background: linear-gradient(135deg, #172554, #1e3a8a) !important;
+  border-color: #2563eb !important;
+}
+html.dark .actual-avatar, html.dark .avatar {
+  background: #1e293b !important;
+  color: #93c5fd !important;
+}
+html.dark .admin-user {
+  border-bottom-color: #1e293b !important;
+}
+html.dark .admin-toggle {
+  background: #1e293b !important;
+  border-color: #3b82f6 !important;
+  color: #60a5fa !important;
+}
+html.dark .admin-toggle.remove {
+  background: #2a1517 !important;
+  border-color: #7f1d1d !important;
+  color: #f87171 !important;
+}
+html.dark .subject-code {
+  background: #1e293b !important;
+  color: #60a5fa !important;
+}
+html.dark .type-tags span {
+  background: #132e2b !important;
+  color: #5eead4 !important;
+}
+html.dark .type-tags .subgroup-tag {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+}
+html.dark .live-badge {
+  background: #064e3b !important;
+  color: #6ee7b7 !important;
+}
+html.dark .live-badge i {
+  box-shadow: 0 0 0 4px rgba(38, 189, 117, 0.2) !important;
+}
+html.dark .next-label {
+  background: #064e3b !important;
+  color: #6ee7b7 !important;
+}
+html.dark .you-label {
+  background: #1e3a8a !important;
+  color: #93c5fd !important;
+}
+html.dark .queue-card.is-locked {
+  background: #0d1526 !important;
+  border-color: #1b253b !important;
+}
+html.dark .locked-badge {
+  background: #3f1d24 !important;
+  color: #fca5a5 !important;
+}
+html.dark .complete-button {
+  background: #064e3b !important;
+  border-color: #047857 !important;
+  color: #6ee7b7 !important;
+}
+html.dark .pass-button {
+  background: #1e3a8a !important;
+  border-color: #2563eb !important;
+  color: #93c5fd !important;
+}
+html.dark .close-button {
+  background: #3f1d24 !important;
+  border-color: #881337 !important;
+  color: #fca5a5 !important;
+}
+html.dark .leave-button {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+html.dark .admin-entry-actions button {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+html.dark .admin-entry-actions button:hover:not(:disabled) {
+  background: #334155 !important;
+  color: #ffffff !important;
+}
+html.dark .empty-state {
+  background: #111c33 !important;
+  border-color: #334155 !important;
+}
+html.dark .empty-state>span {
+  background: #1e293b !important;
+  color: #60a5fa !important;
+}
+html.dark .admin-users-intro {
+  border-bottom-color: #1e293b !important;
+}
+html.dark input {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
