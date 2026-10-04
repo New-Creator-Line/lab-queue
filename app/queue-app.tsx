@@ -22,7 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 type User = {
   telegramId: string;
@@ -163,30 +163,46 @@ function lessonEndTimestamp(date: string, lessonTime: string) {
   return Date.parse(`${date}T${endTime}:00+03:00`);
 }
 
+function subscribeTheme(callback: () => void) {
+  window.addEventListener("storage", callback);
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    media.removeEventListener("change", callback);
+  };
+}
+
+function getThemeSnapshot(): "light" | "dark" {
+  const saved = localStorage.getItem("theme");
+  if (saved === "dark" || saved === "light") return saved;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function getThemeServerSnapshot(): "light" | "dark" {
+  return "light";
+}
+
 function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const theme = useSyncExternalStore(subscribeTheme, getThemeSnapshot, getThemeServerSnapshot);
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initial = saved === "dark" || (!saved && prefersDark) ? "dark" : "light";
-    setTheme(initial);
-    if (initial === "dark") {
+    if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
-  }, []);
+  }, [theme]);
 
   function toggle() {
     const next = theme === "light" ? "dark" : "light";
-    setTheme(next);
     localStorage.setItem("theme", next);
     if (next === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+    window.dispatchEvent(new Event("storage"));
   }
 
   return (
@@ -241,6 +257,7 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
             const checkData = (await checkResp.json()) as { authenticated?: boolean };
             if (checkData.authenticated) {
               window.clearInterval(pollTimer);
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
               window.location.href = `/api/auth/telegram/challenge?token=${encodeURIComponent(token)}&finish=1`;
             }
           } catch {
@@ -614,6 +631,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
           {isPreview && <span className="group-badge" style={{ background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" }}>🟡 Preview среда</span>}
           <span className="group-badge">Подгруппа {initialUser.subgroup}</span>
           <div className="profile-chip">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             {initialUser.photoUrl ? <img src={initialUser.photoUrl} alt="" /> : <span>{initialUser.displayName.slice(0, 1)}</span>}
             <div><strong>{initialUser.displayName}</strong>{initialUser.isAdmin && <small><ShieldCheck size={12} /> {initialUser.isSuperAdmin ? "суперадминистратор" : "администратор"}</small>}</div>
           </div>
