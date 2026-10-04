@@ -644,9 +644,9 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
         <aside className="sidebar">
           <div className="semester-card"><span>Осенний семестр</span><strong>3 курс · ФИТУ</strong><small>Группа 420604</small></div>
           <nav>
-            <button className={view === "subjects" ? "active" : ""} onClick={() => setView("subjects")}><BookOpen size={19} /> Расписание</button>
-            <button className={view === "queues" ? "active" : ""} onClick={() => setView("queues")}><Users size={19} /> Мои очереди {myQueues.length > 0 && <b>{myQueues.length}</b>}</button>
-            {initialUser.isSuperAdmin && <button className={view === "admins" ? "active" : ""} onClick={() => { setView("admins"); void loadAdminUsers(); }}><ShieldCheck size={19} /> Администраторы</button>}
+            <button className={view === "subjects" ? "active" : ""} onClick={() => setView("subjects")}><BookOpen size={18} /> Расписание</button>
+            <button className={view === "queues" ? "active" : ""} onClick={() => setView("queues")}><Users size={18} /> <span className="tab-desktop">Мои очереди</span><span className="tab-mobile">Очереди</span> {myQueues.length > 0 && <b>{myQueues.length}</b>}</button>
+            {initialUser.isSuperAdmin && <button className={view === "admins" ? "active" : ""} onClick={() => { setView("admins"); void loadAdminUsers(); }}><ShieldCheck size={18} /> <span className="tab-desktop">Администраторы</span><span className="tab-mobile">Админы</span></button>}
           </nav>
           <a className="source-link" href="https://iis.bsuir.by/schedule/420604" target="_blank" rel="noreferrer">Расписание БГУИР <ExternalLink size={14} /></a>
         </aside>
