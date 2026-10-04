@@ -212,11 +212,14 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
     min-width:0;
     box-sizing:border-box;
     overflow:hidden;
-    position:relative;
-    background:#fbfcfe;
+    position:sticky;
+    top:62px;
+    z-index:15;
+    backdrop-filter:blur(16px);
+    background:rgba(251,252,254,0.92);
   }
   html.dark .sidebar {
-    background:#0d1527 !important;
+    background:rgba(13,21,39,0.92) !important;
     border-bottom-color:#1e293b !important;
   }
   .semester-card { display:none; }
@@ -255,7 +258,15 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
   .landing-nav,.app-header {
     height:62px;
     padding:0 14px;
-    position:relative;
+    position:sticky;
+    top:0;
+    z-index:20;
+    backdrop-filter:blur(16px);
+    background:rgba(255,255,255,0.88);
+  }
+  html.dark .landing-nav, html.dark .app-header {
+    background:rgba(11,17,32,0.92) !important;
+    border-bottom-color:#1e293b !important;
   }
   .brand { gap:8px; font-size:15px; }
   .brand-mark { width:32px; height:32px; border-radius:9px; }
