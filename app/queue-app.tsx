@@ -169,6 +169,7 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
   useEffect(() => {
     if (!botUsername) return;
     let active = true;
+    let pollTimer: number | undefined;
     const controller = new AbortController();
 
     async function beginLogin() {
@@ -189,6 +190,22 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
         }
         if (!active) return;
         setBotUrl(data.botUrl);
+
+        const token = data.token;
+        pollTimer = window.setInterval(async () => {
+          if (!active) return;
+          try {
+            const checkResp = await fetch(`/api/auth/telegram/challenge?token=${encodeURIComponent(token)}`);
+            if (!checkResp.ok) return;
+            const checkData = (await checkResp.json()) as { authenticated?: boolean };
+            if (checkData.authenticated) {
+              window.clearInterval(pollTimer);
+              window.location.href = `/api/auth/telegram/challenge?token=${encodeURIComponent(token)}&finish=1`;
+            }
+          } catch {
+            // сетевые задержки поллинга
+          }
+        }, 1500);
       } catch (loginError) {
         if (!active || (loginError instanceof DOMException && loginError.name === "AbortError")) return;
         setError(loginError instanceof Error ? loginError.message : "Не удалось начать вход");
@@ -198,6 +215,7 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
     void beginLogin();
     return () => {
       active = false;
+      if (pollTimer) window.clearInterval(pollTimer);
       controller.abort();
     };
   }, [attempt, botUsername]);
