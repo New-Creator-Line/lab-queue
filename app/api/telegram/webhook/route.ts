@@ -27,22 +27,26 @@ function telegramApi(method: string) {
 async function sendMessage(
   chatId: number | string,
   text: string,
-  siteUrl: string,
-  buttonText: string,
+  siteUrl?: string,
+  buttonText?: string,
 ) {
   const endpoint = telegramApi("sendMessage");
   if (!endpoint) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
 
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+  };
+  if (siteUrl && buttonText) {
+    body.reply_markup = {
+      inline_keyboard: [[{ text: buttonText, url: siteUrl }]],
+    };
+  }
+
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      reply_markup: {
-        inline_keyboard: [[{ text: buttonText, url: siteUrl }]],
-      },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -53,7 +57,6 @@ async function sendMessage(
 async function confirmLogin(
   token: string,
   message: NonNullable<TelegramUpdate["message"]>,
-  siteUrl: string,
 ) {
   const chatId = message.chat?.id;
   const sender = message.from;
@@ -96,11 +99,28 @@ async function confirmLogin(
     .returning({ token: telegramAuthChallenges.token });
 
   if (confirmed.length === 0) {
+    const [alreadyConfirmed] = await db
+      .select()
+      .from(telegramAuthChallenges)
+      .where(
+        and(
+          eq(telegramAuthChallenges.token, token),
+          eq(telegramAuthChallenges.telegramId, String(telegramId)),
+        ),
+      )
+      .limit(1);
+
+    if (alreadyConfirmed) {
+      await sendMessage(
+        chatId,
+        "Вход уже подтверждён ✅\n\nВы в системе. Можете возвращаться во вкладку браузера к расписанию.",
+      );
+      return true;
+    }
+
     await sendMessage(
       chatId,
-      "Эта ссылка входа уже использована или устарела. Вернись на сайт и попробуй ещё раз.",
-      siteUrl,
-      "Вернуться на сайт",
+      "Эта ссылка входа уже использована или устарела. Вернитесь на сайт и попробуйте ещё раз.",
     );
     return true;
   }
@@ -109,22 +129,15 @@ async function confirmLogin(
     await sendMessage(
       chatId,
       accessError.code === "ACCOUNT_ALREADY_BOUND"
-        ? "Этот участник группы уже привязан к другому Telegram-аккаунту. Если это ошибка, обратись к администратору."
+        ? "Этот участник группы уже привязан к другому Telegram-аккаунту. Если это ошибка, обратитесь к администратору."
         : "Доступ закрыт: этот Telegram-аккаунт не входит в утверждённый список группы 420604.",
-      siteUrl,
-      "Вернуться на сайт",
     );
     return true;
   }
 
-  const returnUrl = new URL("/api/auth/telegram/challenge", siteUrl);
-  returnUrl.searchParams.set("token", token);
-  returnUrl.searchParams.set("finish", "1");
   await sendMessage(
     chatId,
-    "Вход подтверждён ✅ Нажми кнопку ниже, чтобы вернуться на сайт.",
-    returnUrl.toString(),
-    "Вернуться в очередь",
+    "Вход подтверждён ✅\n\nВы успешно вошли в Очередь 420604. Возвращайтесь во вкладку браузера — расписание уже открыто!",
   );
   return true;
 }
@@ -144,7 +157,7 @@ export async function POST(request: Request) {
   const text = message.text?.trim() ?? "";
   const siteUrl = new URL(request.url).origin;
   const loginMatch = text.match(/^\/start(?:@\w+)?\s+login_([a-f0-9]{48})$/i);
-  if (loginMatch && (await confirmLogin(loginMatch[1], message, siteUrl))) {
+  if (loginMatch && (await confirmLogin(loginMatch[1], message))) {
     return Response.json({ ok: true });
   }
 
