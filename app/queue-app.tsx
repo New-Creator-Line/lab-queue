@@ -231,7 +231,7 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
   );
 }
 
-function LoginScreen({ botUsername }: { botUsername: string | null }) {
+function LoginScreen({ botUsername, isPreview }: { botUsername: string | null; isPreview?: boolean }) {
   return (
     <main className="landing-shell">
       <nav className="landing-nav">
@@ -239,6 +239,7 @@ function LoginScreen({ botUsername }: { botUsername: string | null }) {
           <span className="brand-mark"><GraduationCap size={22} /></span>
           <span>Очередь 420604</span>
         </div>
+        {isPreview && <span className="nav-pill" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>🟡 Предпросмотр (Preview)</span>}
         <span className="nav-pill">БГУИР · ФИТУ</span>
       </nav>
 
@@ -296,7 +297,7 @@ function RosterProfileError() {
   );
 }
 
-function Dashboard({ initialUser }: { initialUser: User }) {
+function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: boolean }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -548,6 +549,7 @@ function Dashboard({ initialUser }: { initialUser: User }) {
       <header className="app-header">
         <div className="brand"><span className="brand-mark"><GraduationCap size={21} /></span><span>Очередь 420604</span></div>
         <div className="header-actions">
+          {isPreview && <span className="group-badge" style={{ background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" }}>🟡 Preview среда</span>}
           <span className="group-badge">Подгруппа {initialUser.subgroup}</span>
           <div className="profile-chip">
             {initialUser.photoUrl ? <img src={initialUser.photoUrl} alt="" /> : <span>{initialUser.displayName.slice(0, 1)}</span>}
@@ -768,8 +770,16 @@ function Dashboard({ initialUser }: { initialUser: User }) {
   );
 }
 
-export function QueueApp({ botUsername, initialUser }: { botUsername: string | null; initialUser: User | null }) {
-  if (!initialUser) return <LoginScreen botUsername={botUsername} />;
+export function QueueApp({
+  botUsername,
+  initialUser,
+  isPreview,
+}: {
+  botUsername: string | null;
+  initialUser: User | null;
+  isPreview?: boolean;
+}) {
+  if (!initialUser) return <LoginScreen botUsername={botUsername} isPreview={isPreview} />;
   if (!initialUser.subgroup) return <RosterProfileError />;
-  return <Dashboard initialUser={initialUser} />;
+  return <Dashboard initialUser={initialUser} isPreview={isPreview} />;
 }
