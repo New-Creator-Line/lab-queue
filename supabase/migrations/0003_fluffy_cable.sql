@@ -1,0 +1,1 @@
+ALTER TABLE "queues" ADD COLUMN "lesson_ends_at" timestamp with time zone;
