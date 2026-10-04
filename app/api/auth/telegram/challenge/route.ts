@@ -32,8 +32,12 @@ export async function POST() {
       botUrl: `https://t.me/${botUsername}?start=login_${token}`,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Не удалось связаться с базой данных";
+    const cause = (error as { cause?: Error })?.cause?.message;
+    const message = cause
+      ? cause
+      : error instanceof Error
+        ? error.message
+        : "Не удалось связаться с базой данных";
     return Response.json({ error: message }, { status: 500 });
   }
 }
