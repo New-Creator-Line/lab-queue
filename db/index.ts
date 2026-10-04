@@ -14,15 +14,20 @@ function getClient() {
     throw new Error("DATABASE_URL is not configured");
   }
 
-  const connectionUrl = new URL(configuredConnectionString);
-  if (
-    connectionUrl.username.endsWith(".ctdeulxlvazwbkvkobud") &&
-    connectionUrl.hostname.endsWith(".pooler.supabase.com")
-  ) {
-    connectionUrl.hostname = "aws-1-eu-central-1.pooler.supabase.com";
-    connectionUrl.port = "6543";
+  let connectionString = configuredConnectionString;
+  try {
+    const connectionUrl = new URL(configuredConnectionString);
+    if (
+      connectionUrl.username.endsWith(".ctdeulxlvazwbkvkobud") &&
+      connectionUrl.hostname.endsWith(".pooler.supabase.com")
+    ) {
+      connectionUrl.hostname = "aws-1-eu-central-1.pooler.supabase.com";
+      connectionUrl.port = "6543";
+      connectionString = connectionUrl.toString();
+    }
+  } catch {
+    connectionString = configuredConnectionString;
   }
-  const connectionString = connectionUrl.toString();
 
   if (!globalForDatabase.postgresClient) {
     globalForDatabase.postgresClient = postgres(connectionString, {

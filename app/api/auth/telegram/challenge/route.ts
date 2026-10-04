@@ -13,20 +13,29 @@ import {
 const CHALLENGE_LIFETIME_SECONDS = 10 * 60;
 
 export async function POST() {
-  const botUsername = getTelegramBotUsername();
-  if (!botUsername) {
-    return Response.json({ error: "Telegram-бот не настроен" }, { status: 503 });
+  try {
+    const botUsername = getTelegramBotUsername();
+    if (!botUsername) {
+      return Response.json(
+        { error: "TELEGRAM_BOT_USERNAME не настроен в Vercel" },
+        { status: 503 },
+      );
+    }
+
+    const token = randomToken(24);
+    const expiresAt = Math.floor(Date.now() / 1000) + CHALLENGE_LIFETIME_SECONDS;
+    const db = getDb();
+    await db.insert(telegramAuthChallenges).values({ token, expiresAt });
+
+    return Response.json({
+      token,
+      botUrl: `https://t.me/${botUsername}?start=login_${token}`,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Не удалось связаться с базой данных";
+    return Response.json({ error: message }, { status: 500 });
   }
-
-  const token = randomToken(24);
-  const expiresAt = Math.floor(Date.now() / 1000) + CHALLENGE_LIFETIME_SECONDS;
-  const db = getDb();
-  await db.insert(telegramAuthChallenges).values({ token, expiresAt });
-
-  return Response.json({
-    token,
-    botUrl: `https://t.me/${botUsername}?start=login_${token}`,
-  });
 }
 
 export async function GET(request: Request) {
