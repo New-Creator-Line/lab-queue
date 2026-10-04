@@ -17,16 +17,35 @@ function getClient() {
   let connectionString = configuredConnectionString;
   try {
     const connectionUrl = new URL(configuredConnectionString);
-    if (
-      connectionUrl.username.endsWith(".ctdeulxlvazwbkvkobud") &&
-      connectionUrl.hostname.endsWith(".pooler.supabase.com")
-    ) {
+    const directMatch = connectionUrl.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/);
+    if (directMatch) {
+      const projectRef = directMatch[1];
       connectionUrl.hostname = "aws-1-eu-central-1.pooler.supabase.com";
       connectionUrl.port = "6543";
+      if (!connectionUrl.username.includes(".")) {
+        connectionUrl.username = `postgres.${projectRef}`;
+      }
+      connectionUrl.searchParams.set("sslmode", "require");
+      connectionString = connectionUrl.toString();
+    } else if (connectionUrl.hostname.endsWith(".pooler.supabase.com")) {
+      connectionUrl.hostname = "aws-1-eu-central-1.pooler.supabase.com";
+      connectionUrl.port = "6543";
+      connectionUrl.searchParams.set("sslmode", "require");
       connectionString = connectionUrl.toString();
     }
   } catch {
-    connectionString = configuredConnectionString;
+    const directMatch = configuredConnectionString.match(
+      /@db\.([a-z0-9]+)\.supabase\.co(?::\d+)?\//,
+    );
+    if (directMatch) {
+      const projectRef = directMatch[1];
+      connectionString = configuredConnectionString
+        .replace(
+          /@db\.[a-z0-9]+\.supabase\.co(?::\d+)?\//,
+          "@aws-1-eu-central-1.pooler.supabase.com:6543/",
+        )
+        .replace(/:\/\/postgres:/, `://postgres.${projectRef}:`);
+    }
   }
 
   if (!globalForDatabase.postgresClient) {
