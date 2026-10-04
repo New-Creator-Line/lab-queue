@@ -659,13 +659,15 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                 className="refresh-button"
                 disabled={refreshing}
                 onClick={handleManualRefresh}
+                title="Обновить расписание и очереди"
+                aria-label="Обновить"
               >
                 <RefreshCw
                   className={refreshAnimation > 0 ? "refresh-turn" : undefined}
                   key={refreshAnimation}
                   size={17}
                 />
-                {refreshing ? "Обновляем…" : "Обновить"}
+                <span className="refresh-label">{refreshing ? "Обновляем…" : "Обновить"}</span>
               </button>
             )}
           </div>
