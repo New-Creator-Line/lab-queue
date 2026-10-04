@@ -15,12 +15,14 @@ import {
   GraduationCap,
   LoaderCircle,
   LogOut,
+  Moon,
   RefreshCw,
   ShieldCheck,
+  Sun,
   Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 type User = {
   telegramId: string;
@@ -161,6 +163,61 @@ function lessonEndTimestamp(date: string, lessonTime: string) {
   return Date.parse(`${date}T${endTime}:00+03:00`);
 }
 
+function subscribeTheme(callback: () => void) {
+  window.addEventListener("storage", callback);
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    media.removeEventListener("change", callback);
+  };
+}
+
+function getThemeSnapshot(): "light" | "dark" {
+  const saved = localStorage.getItem("theme");
+  if (saved === "dark" || saved === "light") return saved;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function getThemeServerSnapshot(): "light" | "dark" {
+  return "light";
+}
+
+function ThemeToggle() {
+  const theme = useSyncExternalStore(subscribeTheme, getThemeSnapshot, getThemeServerSnapshot);
+
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [theme]);
+
+  function toggle() {
+    const next = theme === "light" ? "dark" : "light";
+    localStorage.setItem("theme", next);
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    window.dispatchEvent(new Event("storage"));
+  }
+
+  return (
+    <button
+      className="icon-button"
+      type="button"
+      onClick={toggle}
+      title={theme === "light" ? "Включить тёмную тему" : "Включить светлую тему"}
+      aria-label="Переключить тему"
+    >
+      {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+    </button>
+  );
+}
+
 function TelegramLogin({ botUsername }: { botUsername: string | null }) {
   const [botUrl, setBotUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -169,6 +226,7 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
   useEffect(() => {
     if (!botUsername) return;
     let active = true;
+    let pollTimer: number | undefined;
     const controller = new AbortController();
 
     async function beginLogin() {
@@ -189,6 +247,23 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
         }
         if (!active) return;
         setBotUrl(data.botUrl);
+
+        const token = data.token;
+        pollTimer = window.setInterval(async () => {
+          if (!active) return;
+          try {
+            const checkResp = await fetch(`/api/auth/telegram/challenge?token=${encodeURIComponent(token)}`);
+            if (!checkResp.ok) return;
+            const checkData = (await checkResp.json()) as { authenticated?: boolean };
+            if (checkData.authenticated) {
+              window.clearInterval(pollTimer);
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+              window.location.href = `/api/auth/telegram/challenge?token=${encodeURIComponent(token)}&finish=1`;
+            }
+          } catch {
+            // сетевые задержки поллинга
+          }
+        }, 1500);
       } catch (loginError) {
         if (!active || (loginError instanceof DOMException && loginError.name === "AbortError")) return;
         setError(loginError instanceof Error ? loginError.message : "Не удалось начать вход");
@@ -198,6 +273,7 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
     void beginLogin();
     return () => {
       active = false;
+      if (pollTimer) window.clearInterval(pollTimer);
       controller.abort();
     };
   }, [attempt, botUsername]);
@@ -231,7 +307,7 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
   );
 }
 
-function LoginScreen({ botUsername }: { botUsername: string | null }) {
+function LoginScreen({ botUsername, isPreview }: { botUsername: string | null; isPreview?: boolean }) {
   return (
     <main className="landing-shell">
       <nav className="landing-nav">
@@ -239,7 +315,11 @@ function LoginScreen({ botUsername }: { botUsername: string | null }) {
           <span className="brand-mark"><GraduationCap size={22} /></span>
           <span>Очередь 420604</span>
         </div>
-        <span className="nav-pill">БГУИР · ФИТУ</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {isPreview && <span className="nav-pill" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>🟡 Предпросмотр (Preview)</span>}
+          <span className="nav-pill">БГУИР · ФИТУ</span>
+          <ThemeToggle />
+        </div>
       </nav>
 
       <section className="hero">
@@ -296,7 +376,7 @@ function RosterProfileError() {
   );
 }
 
-function Dashboard({ initialUser }: { initialUser: User }) {
+function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: boolean }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -548,11 +628,14 @@ function Dashboard({ initialUser }: { initialUser: User }) {
       <header className="app-header">
         <div className="brand"><span className="brand-mark"><GraduationCap size={21} /></span><span>Очередь 420604</span></div>
         <div className="header-actions">
+          {isPreview && <span className="group-badge" style={{ background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" }}>🟡 Preview среда</span>}
           <span className="group-badge">Подгруппа {initialUser.subgroup}</span>
           <div className="profile-chip">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             {initialUser.photoUrl ? <img src={initialUser.photoUrl} alt="" /> : <span>{initialUser.displayName.slice(0, 1)}</span>}
             <div><strong>{initialUser.displayName}</strong>{initialUser.isAdmin && <small><ShieldCheck size={12} /> {initialUser.isSuperAdmin ? "суперадминистратор" : "администратор"}</small>}</div>
           </div>
+          <ThemeToggle />
           <form action="/api/auth/logout" method="post"><button className="icon-button" title="Выйти"><LogOut size={18} /></button></form>
         </div>
       </header>
@@ -561,9 +644,9 @@ function Dashboard({ initialUser }: { initialUser: User }) {
         <aside className="sidebar">
           <div className="semester-card"><span>Осенний семестр</span><strong>3 курс · ФИТУ</strong><small>Группа 420604</small></div>
           <nav>
-            <button className={view === "subjects" ? "active" : ""} onClick={() => setView("subjects")}><BookOpen size={19} /> Расписание</button>
-            <button className={view === "queues" ? "active" : ""} onClick={() => setView("queues")}><Users size={19} /> Мои очереди {myQueues.length > 0 && <b>{myQueues.length}</b>}</button>
-            {initialUser.isSuperAdmin && <button className={view === "admins" ? "active" : ""} onClick={() => { setView("admins"); void loadAdminUsers(); }}><ShieldCheck size={19} /> Администраторы</button>}
+            <button className={view === "subjects" ? "active" : ""} onClick={() => setView("subjects")}><BookOpen size={18} /> Расписание</button>
+            <button className={view === "queues" ? "active" : ""} onClick={() => setView("queues")}><Users size={18} /> <span className="tab-desktop">Мои очереди</span><span className="tab-mobile">Очереди</span> {myQueues.length > 0 && <b>{myQueues.length}</b>}</button>
+            {initialUser.isSuperAdmin && <button className={view === "admins" ? "active" : ""} onClick={() => { setView("admins"); void loadAdminUsers(); }}><ShieldCheck size={18} /> <span className="tab-desktop">Администраторы</span><span className="tab-mobile">Админы</span></button>}
           </nav>
           <a className="source-link" href="https://iis.bsuir.by/schedule/420604" target="_blank" rel="noreferrer">Расписание БГУИР <ExternalLink size={14} /></a>
         </aside>
@@ -576,13 +659,15 @@ function Dashboard({ initialUser }: { initialUser: User }) {
                 className="refresh-button"
                 disabled={refreshing}
                 onClick={handleManualRefresh}
+                title="Обновить расписание и очереди"
+                aria-label="Обновить"
               >
                 <RefreshCw
                   className={refreshAnimation > 0 ? "refresh-turn" : undefined}
                   key={refreshAnimation}
                   size={17}
                 />
-                {refreshing ? "Обновляем…" : "Обновить"}
+                <span className="refresh-label">{refreshing ? "Обновляем…" : "Обновить"}</span>
               </button>
             )}
           </div>
@@ -768,8 +853,16 @@ function Dashboard({ initialUser }: { initialUser: User }) {
   );
 }
 
-export function QueueApp({ botUsername, initialUser }: { botUsername: string | null; initialUser: User | null }) {
-  if (!initialUser) return <LoginScreen botUsername={botUsername} />;
+export function QueueApp({
+  botUsername,
+  initialUser,
+  isPreview,
+}: {
+  botUsername: string | null;
+  initialUser: User | null;
+  isPreview?: boolean;
+}) {
+  if (!initialUser) return <LoginScreen botUsername={botUsername} isPreview={isPreview} />;
   if (!initialUser.subgroup) return <RosterProfileError />;
-  return <Dashboard initialUser={initialUser} />;
+  return <Dashboard initialUser={initialUser} isPreview={isPreview} />;
 }
