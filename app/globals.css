@@ -353,17 +353,57 @@ html.dark .actual-avatar, html.dark .avatar {
   color: #93c5fd !important;
 }
 html.dark .admin-user {
-  border-bottom-color: #1e293b !important;
+  background: #0d1527 !important;
+  border: 1px solid #1e293b !important;
+}
+html.dark .admin-user:hover {
+  background: #111e38 !important;
+  border-color: #2e3d5b !important;
+}
+html.dark .admin-user-info strong {
+  color: #f8fafc !important;
+  font-weight: 700 !important;
+}
+html.dark .admin-user-info small {
+  color: #94a3b8 !important;
+}
+html.dark .admin-status {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+}
+html.dark .admin-users-intro strong {
+  color: #f8fafc !important;
+}
+html.dark .admin-users-intro p {
+  color: #94a3b8 !important;
+}
+html.dark .admin-users-intro>span {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+}
+html.dark .admin-users-note {
+  color: #94a3b8 !important;
 }
 html.dark .admin-toggle {
   background: #1e293b !important;
-  border-color: #3b82f6 !important;
+  border: 1px solid #3b82f6 !important;
   color: #60a5fa !important;
 }
+html.dark .admin-toggle:hover:not(:disabled) {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
 html.dark .admin-toggle.remove {
-  background: #2a1517 !important;
-  border-color: #7f1d1d !important;
-  color: #f87171 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  color: #fca5a5 !important;
+}
+html.dark .admin-toggle.remove:hover:not(:disabled) {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
 }
 html.dark .subject-code {
   background: #1e293b !important;
@@ -444,4 +484,25 @@ html.dark input {
   background: #1e293b !important;
   color: #f1f5f9 !important;
   border-color: #334155 !important;
+}
+html.dark .day-count,
+html.dark .queue-count,
+html.dark .queue-empty,
+html.dark .queue-lesson-date,
+html.dark .source-link,
+html.dark .profile-chip small {
+  color: #94a3b8 !important;
+}
+html.dark .profile-chip strong {
+  color: #f8fafc !important;
+}
+html.dark .error-banner {
+  color: #fca5a5 !important;
+  background: #3f1d24 !important;
+  border: 1px solid #881337 !important;
+}
+html.dark .warning-card {
+  color: #fde047 !important;
+  background: #3f2e05 !important;
+  border: 1px solid #713f12 !important;
 }
