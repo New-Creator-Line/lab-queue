@@ -22,7 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 type User = {
   telegramId: string;
@@ -222,6 +222,7 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
   const [botUrl, setBotUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const authWindowRef = useRef<Window | null>(null);
 
   useEffect(() => {
     if (!botUsername) return;
@@ -257,6 +258,13 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
             const checkData = (await checkResp.json()) as { authenticated?: boolean };
             if (checkData.authenticated) {
               window.clearInterval(pollTimer);
+              try {
+                if (authWindowRef.current && !authWindowRef.current.closed) {
+                  authWindowRef.current.close();
+                }
+              } catch {
+                // игнорируем ошибку закрытия окна, если браузер блокирует или окно уже закрыто
+              }
               // eslint-disable-next-line @next/next/no-location-assign-relative-destination
               window.location.href = `/api/auth/telegram/challenge?token=${encodeURIComponent(token)}&finish=1`;
             }
@@ -288,7 +296,21 @@ function TelegramLogin({ botUsername }: { botUsername: string | null }) {
   return (
     <div className="telegram-actions">
       {botUrl ? (
-        <a className="bot-start-link" href={botUrl} target="_blank" rel="noreferrer">
+        <a
+          className="bot-start-link"
+          href={botUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => {
+            e.preventDefault();
+            try {
+              const popup = window.open(botUrl, "_blank");
+              authWindowRef.current = popup;
+            } catch {
+              window.location.href = botUrl;
+            }
+          }}
+        >
           Открыть Telegram <ExternalLink size={16} />
         </a>
       ) : !error ? (
