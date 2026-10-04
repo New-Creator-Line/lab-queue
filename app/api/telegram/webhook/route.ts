@@ -96,6 +96,30 @@ async function confirmLogin(
     .returning({ token: telegramAuthChallenges.token });
 
   if (confirmed.length === 0) {
+    const [alreadyConfirmed] = await db
+      .select()
+      .from(telegramAuthChallenges)
+      .where(
+        and(
+          eq(telegramAuthChallenges.token, token),
+          eq(telegramAuthChallenges.telegramId, String(telegramId)),
+        ),
+      )
+      .limit(1);
+
+    if (alreadyConfirmed) {
+      const returnUrl = new URL("/api/auth/telegram/challenge", siteUrl);
+      returnUrl.searchParams.set("token", token);
+      returnUrl.searchParams.set("finish", "1");
+      await sendMessage(
+        chatId,
+        "Вход уже подтверждён ✅\n\nЕсли сайт открыт в браузере — вход выполнен автоматически.\nЛибо нажми кнопку ниже, чтобы открыть очередь:",
+        returnUrl.toString(),
+        "Открыть очередь",
+      );
+      return true;
+    }
+
     await sendMessage(
       chatId,
       "Эта ссылка входа уже использована или устарела. Вернись на сайт и попробуй ещё раз.",
@@ -122,9 +146,9 @@ async function confirmLogin(
   returnUrl.searchParams.set("finish", "1");
   await sendMessage(
     chatId,
-    "Вход подтверждён ✅ Нажми кнопку ниже, чтобы вернуться на сайт.",
+    "Вход подтверждён ✅\n\nЕсли сайт уже открыт в браузере — вход выполнен автоматически, можете возвращаться к расписанию.\n\nЛибо нажмите кнопку ниже, чтобы перейти в очередь:",
     returnUrl.toString(),
-    "Вернуться в очередь",
+    "Открыть очередь",
   );
   return true;
 }
