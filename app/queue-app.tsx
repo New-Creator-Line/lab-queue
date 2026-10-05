@@ -17,6 +17,7 @@ import {
   LogOut,
   Moon,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   Sun,
   Users,
@@ -88,6 +89,18 @@ type AdminUser = {
   isSuperAdmin: boolean;
   isProtected: boolean;
   isCurrentUser: boolean;
+};
+
+type ClosedQueue = {
+  id: number;
+  subjectKey: string;
+  subjectName: string;
+  subjectAbbrev: string;
+  subgroup: number;
+  lessonEndsAt: string | null;
+  currentCycle: number;
+  closedAt: string | null;
+  waitingCount: number;
 };
 
 function formatScheduleDate(date: string) {
@@ -407,6 +420,8 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   const [view, setView] = useState<"subjects" | "queues" | "admins">("subjects");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [closedQueues, setClosedQueues] = useState<ClosedQueue[]>([]);
+  const [closedQueuesLoading, setClosedQueuesLoading] = useState(false);
 
   const refreshAll = useCallback(async (quiet = false) => {
     if (!quiet) setError("");
@@ -455,6 +470,45 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
       setAdminUsersLoading(false);
     }
   }, []);
+
+  const loadClosedQueues = useCallback(async () => {
+    setClosedQueuesLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/closed-queues", { cache: "no-store" });
+      const result = (await response.json()) as { queues?: ClosedQueue[]; error?: string };
+      if (!response.ok || !result.queues) {
+        throw new Error(result.error ?? "Не удалось загрузить закрытые очереди");
+      }
+      setClosedQueues(result.queues);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Не удалось загрузить закрытые очереди");
+    } finally {
+      setClosedQueuesLoading(false);
+    }
+  }, []);
+
+  async function reopenQueue(queue: ClosedQueue) {
+    setPendingKey(`reopen-${queue.id}`);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/reopen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ queueId: queue.id }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(result.error ?? "Не удалось восстановить очередь");
+      }
+      setClosedQueues((current) => current.filter((item) => item.id !== queue.id));
+      await refreshQueues(true);
+    } catch (reopenError) {
+      setError(reopenError instanceof Error ? reopenError.message : "Не удалось восстановить очередь");
+    } finally {
+      setPendingKey(null);
+    }
+  }
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void refreshAll(), 0);
@@ -643,7 +697,12 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
       ? { title: "Расписание по дням", description: "Только лабораторные и практические занятия." }
       : view === "queues"
         ? { title: "Твои очереди", description: "Порядок обновляется автоматически каждые 15 секунд." }
-        : { title: "Администраторы", description: "Назначение прав среди участников, которые уже входили на сайт." };
+        : {
+            title: initialUser.isSuperAdmin ? "Администрирование" : "Управление очередями",
+            description: initialUser.isSuperAdmin
+              ? "Управление правами участников и восстановление закрытых очередей."
+              : "Восстановление случайно закрытых очередей.",
+          };
 
   return (
     <main className="app-shell">
@@ -668,7 +727,20 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
           <nav>
             <button className={view === "subjects" ? "active" : ""} onClick={() => setView("subjects")}><BookOpen size={18} /> Расписание</button>
             <button className={view === "queues" ? "active" : ""} onClick={() => setView("queues")}><Users size={18} /> <span className="tab-desktop">Мои очереди</span><span className="tab-mobile">Очереди</span> {myQueues.length > 0 && <b>{myQueues.length}</b>}</button>
-            {initialUser.isSuperAdmin && <button className={view === "admins" ? "active" : ""} onClick={() => { setView("admins"); void loadAdminUsers(); }}><ShieldCheck size={18} /> <span className="tab-desktop">Администраторы</span><span className="tab-mobile">Админы</span></button>}
+            {(initialUser.isAdmin || initialUser.isSuperAdmin) && (
+              <button
+                className={view === "admins" ? "active" : ""}
+                onClick={() => {
+                  setView("admins");
+                  if (initialUser.isSuperAdmin) void loadAdminUsers();
+                  void loadClosedQueues();
+                }}
+              >
+                <ShieldCheck size={18} />{" "}
+                <span className="tab-desktop">{initialUser.isSuperAdmin ? "Администрирование" : "Управление"}</span>
+                <span className="tab-mobile">Админ</span>
+              </button>
+            )}
           </nav>
           <a className="source-link" href="https://iis.bsuir.by/schedule/420604" target="_blank" rel="noreferrer">Расписание БГУИР <ExternalLink size={14} /></a>
         </aside>
@@ -818,7 +890,30 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                   <button className="leave-button" disabled={pendingKey === `leave-${queue.id}`} onClick={() => act("/api/queue/leave", { queueId: queue.id }, `leave-${queue.id}`, () => removeEntryOptimistically(queue.id, myEntry.id))}>Выйти из очереди</button>
                                 </>
                               )}
-                              {initialUser.isAdmin && !queue.isLocked && <button className="close-button" onClick={() => act("/api/admin/close", { queueId: queue.id }, `close-${queue.id}`, () => closeQueueOptimistically(queue.id))}>Закрыть очередь</button>}
+                              {initialUser.isAdmin && !queue.isLocked && (
+                                <button
+                                  className="close-button"
+                                  disabled={pendingKey === `close-${queue.id}`}
+                                  onClick={() => {
+                                    const queueTitle = `${queue.subjectName} (${queue.subgroup === 0 ? "вся группа" : `${queue.subgroup}-я подгруппа`})`;
+                                    if (!window.confirm(`Вы уверены, что хотите закрыть очередь по предмету «${queueTitle}»?`)) {
+                                      return;
+                                    }
+                                    void act(
+                                      "/api/admin/close",
+                                      { queueId: queue.id },
+                                      `close-${queue.id}`,
+                                      () => closeQueueOptimistically(queue.id),
+                                    );
+                                  }}
+                                >
+                                  {pendingKey === `close-${queue.id}` ? (
+                                    <LoaderCircle className="spin" size={16} />
+                                  ) : (
+                                    "Закрыть очередь"
+                                  )}
+                                </button>
+                              )}
                             </div>
                           </article>
                         );
@@ -830,44 +925,113 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
             </div>
           )}
 
-          {data && view === "admins" && initialUser.isSuperAdmin && (
-            <section className="admin-users-card">
-              <div className="admin-users-intro">
-                <div>
-                  <strong>Управление правами</strong>
-                  <p>Назначенные администраторы смогут редактировать очереди. Управлять правами может только суперадминистратор.</p>
+          {data && view === "admins" && (initialUser.isAdmin || initialUser.isSuperAdmin) && (
+            <div className="admin-views-stack">
+              <section className="admin-closed-queues-card">
+                <div className="admin-users-intro">
+                  <div>
+                    <strong>Недавно закрытые очереди</strong>
+                    <p>Если вы случайно закрыли очередь, её можно восстановить одним нажатием. Студенты вернутся на свои места в очереди.</p>
+                  </div>
+                  <button
+                    className="icon-button"
+                    style={{ width: "36px", height: "36px", flexShrink: 0 }}
+                    type="button"
+                    disabled={closedQueuesLoading}
+                    onClick={() => void loadClosedQueues()}
+                    title="Обновить список закрытых очередей"
+                  >
+                    <RefreshCw className={closedQueuesLoading ? "refresh-turn" : undefined} size={16} />
+                  </button>
                 </div>
-                <span>{adminUsers.filter((user) => user.isAdmin).length} админ.</span>
-              </div>
-              {adminUsersLoading ? (
-                <div className="admin-users-loading"><LoaderCircle className="spin" size={20} /> Загружаем участников…</div>
-              ) : (
-                <div className="admin-users-list">
-                  {adminUsers.map((user) => {
-                    const disabled = user.isCurrentUser || user.isProtected || pendingKey === `admin-${user.telegramId}`;
-                    return (
-                      <div className="admin-user" key={user.telegramId}>
-                        <span className="actual-avatar">{user.displayName.slice(0, 1)}</span>
-                        <div className="admin-user-info">
-                          <strong>{user.displayName}</strong>
-                          <small>@{user.username ?? "без username"} · подгруппа {user.subgroup ?? "—"}</small>
+                {closedQueuesLoading && closedQueues.length === 0 ? (
+                  <div className="admin-users-loading"><LoaderCircle className="spin" size={20} /> Загружаем закрытые очереди…</div>
+                ) : closedQueues.length === 0 ? (
+                  <p className="admin-empty-note">Нет недавно закрытых очередей</p>
+                ) : (
+                  <div className="closed-queues-list">
+                    {closedQueues.map((queue) => (
+                      <div className="closed-queue-row" key={queue.id}>
+                        <div className="closed-queue-info">
+                          <div className="closed-queue-title">
+                            <span className="subject-code">{queue.subjectAbbrev}</span>
+                            <strong>{queue.subjectName}</strong>
+                            <span className="subgroup-tag">
+                              {queue.subgroup === 0 ? "Вся группа" : `${queue.subgroup}-я подгруппа`}
+                            </span>
+                          </div>
+                          <div className="closed-queue-meta">
+                            <span>{formatQueueDate(queue.lessonEndsAt)}</span>
+                            {queue.waitingCount > 0 && (
+                              <span className="waiting-tag">
+                                <Users size={13} /> {queue.waitingCount} в очереди
+                              </span>
+                            )}
+                            {queue.closedAt && (
+                              <span className="closed-time">
+                                Закрыта {new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short", timeZone: "Europe/Minsk" }).format(new Date(queue.closedAt))}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {user.isAdmin && <span className="admin-status"><ShieldCheck size={14} /> {user.isSuperAdmin ? "суперадмин" : "администратор"}</span>}
                         <button
-                          className={user.isAdmin ? "admin-toggle remove" : "admin-toggle"}
-                          disabled={disabled}
-                          title={user.isCurrentUser ? "Нельзя изменить собственные права" : user.isProtected ? "Основной администратор закреплён в настройках" : undefined}
-                          onClick={() => void toggleAdmin(user)}
+                          className="reopen-button"
+                          disabled={pendingKey === `reopen-${queue.id}`}
+                          onClick={() => void reopenQueue(queue)}
                         >
-                          {pendingKey === `admin-${user.telegramId}` ? <LoaderCircle className="spin" size={16} /> : user.isAdmin ? "Снять права" : "Назначить"}
+                          {pendingKey === `reopen-${queue.id}` ? (
+                            <LoaderCircle className="spin" size={16} />
+                          ) : (
+                            <RotateCcw size={15} />
+                          )}
+                          Восстановить очередь
                         </button>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {initialUser.isSuperAdmin && (
+                <section className="admin-users-card">
+                  <div className="admin-users-intro">
+                    <div>
+                      <strong>Управление правами</strong>
+                      <p>Назначенные администраторы смогут редактировать очереди. Управлять правами может только суперадминистратор.</p>
+                    </div>
+                    <span>{adminUsers.filter((user) => user.isAdmin).length} админ.</span>
+                  </div>
+                  {adminUsersLoading ? (
+                    <div className="admin-users-loading"><LoaderCircle className="spin" size={20} /> Загружаем участников…</div>
+                  ) : (
+                    <div className="admin-users-list">
+                      {adminUsers.map((user) => {
+                        const disabled = user.isCurrentUser || user.isProtected || pendingKey === `admin-${user.telegramId}`;
+                        return (
+                          <div className="admin-user" key={user.telegramId}>
+                            <span className="actual-avatar">{user.displayName.slice(0, 1)}</span>
+                            <div className="admin-user-info">
+                              <strong>{user.displayName}</strong>
+                              <small>@{user.username ?? "без username"} · подгруппа {user.subgroup ?? "—"}</small>
+                            </div>
+                            {user.isAdmin && <span className="admin-status"><ShieldCheck size={14} /> {user.isSuperAdmin ? "суперадмин" : "администратор"}</span>}
+                            <button
+                              className={user.isAdmin ? "admin-toggle remove" : "admin-toggle"}
+                              disabled={disabled}
+                              title={user.isCurrentUser ? "Нельзя изменить собственные права" : user.isProtected ? "Основной администратор закреплён в настройках" : undefined}
+                              onClick={() => void toggleAdmin(user)}
+                            >
+                              {pendingKey === `admin-${user.telegramId}` ? <LoaderCircle className="spin" size={16} /> : user.isAdmin ? "Снять права" : "Назначить"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="admin-users-note">В списке отображаются участники, которые хотя бы один раз вошли на сайт через Telegram.</p>
+                </section>
               )}
-              <p className="admin-users-note">В списке отображаются участники, которые хотя бы один раз вошли на сайт через Telegram.</p>
-            </section>
+            </div>
           )}
         </section>
       </div>
