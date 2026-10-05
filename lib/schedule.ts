@@ -1,5 +1,6 @@
 const GROUP = "420604";
-const SCHEDULE_CACHE_SECONDS = 60 * 60 * 24;
+const SCHEDULE_CACHE_SECONDS = 60 * 60; // 1 час для структуры расписания
+const WEEK_CACHE_SECONDS = 60 * 5; // 5 минут для номера учебной недели (быстрое обновление при смене недели)
 const BSUIR_TIMEOUT_MS = 8_000;
 const ALLOWED_TYPES = new Set(["ЛР", "ПЗ"]);
 const MINSK_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -118,7 +119,7 @@ export async function getSubjects(subgroup?: number | null): Promise<SubjectSumm
     }),
     fetch("https://iis.bsuir.by/api/v1/schedule/current-week", {
       headers: { Accept: "application/json" },
-      next: { revalidate: SCHEDULE_CACHE_SECONDS },
+      next: { revalidate: WEEK_CACHE_SECONDS },
       signal: AbortSignal.timeout(BSUIR_TIMEOUT_MS),
     }),
   ]);
