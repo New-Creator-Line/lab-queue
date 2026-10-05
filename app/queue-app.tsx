@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock3,
   DoorOpen,
@@ -102,6 +103,59 @@ type ClosedQueue = {
   closedAt: string | null;
   waitingCount: number;
 };
+
+type HistoryEntry = {
+  id: number;
+  telegramId: string;
+  displayName: string;
+  username: string | null;
+  subgroup: number | null;
+  status: "waiting" | "served" | "skipped" | "left";
+  position?: number;
+  joinedAt: string;
+  completedAt?: string | null;
+};
+
+type HistoryQueue = {
+  id: number;
+  subjectKey: string;
+  subjectName: string;
+  subjectAbbrev: string;
+  subgroup: number;
+  lessonEndsAt: string | null;
+  currentCycle: number;
+  status: string;
+  createdAt: string;
+  closedAt: string | null;
+  isLocked: boolean;
+  served: HistoryEntry[];
+  waiting: HistoryEntry[];
+  skipped: HistoryEntry[];
+  totalEntries: number;
+};
+
+type HistoryData = {
+  dates: Array<{ date: string; count: number }>;
+  selectedDate: string | null;
+  queues: HistoryQueue[];
+};
+
+function formatHistoryDateHeader(dateStr: string | null) {
+  if (!dateStr) return "Выберите дату";
+  const date = new Date(`${dateStr}T12:00:00+03:00`);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  const weekday = new Intl.DateTimeFormat("ru-RU", { weekday: "long", timeZone: "Europe/Minsk" }).format(date);
+  const formattedDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Minsk" }).format(date);
+  return `${weekday.slice(0, 1).toUpperCase() + weekday.slice(1)}, ${formattedDate}`;
+}
+
+function formatHistoryPillDate(dateStr: string) {
+  const date = new Date(`${dateStr}T12:00:00+03:00`);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  const day = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", timeZone: "Europe/Minsk" }).format(date);
+  const weekday = new Intl.DateTimeFormat("ru-RU", { weekday: "short", timeZone: "Europe/Minsk" }).format(date);
+  return `${day} (${weekday})`;
+}
 
 function formatScheduleDate(date: string) {
   return new Intl.DateTimeFormat("ru-RU", {
@@ -417,11 +471,41 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshAnimation, setRefreshAnimation] = useState(0);
-  const [view, setView] = useState<"subjects" | "queues" | "admins">("subjects");
+  const [view, setView] = useState<"subjects" | "queues" | "calendar" | "admins">("subjects");
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
   const [closedQueues, setClosedQueues] = useState<ClosedQueue[]>([]);
   const [closedQueuesLoading, setClosedQueuesLoading] = useState(false);
+  const [historyData, setHistoryData] = useState<HistoryData | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+
+  const loadHistory = useCallback(async (date?: string) => {
+    setHistoryLoading(true);
+    setError("");
+    try {
+      const url = date ? `/api/admin/history?date=${encodeURIComponent(date)}` : "/api/admin/history";
+      const resp = await fetch(url, { cache: "no-store" });
+      const result = (await resp.json()) as HistoryData & { error?: string };
+      if (!resp.ok) throw new Error(result.error ?? "Не удалось загрузить историю очередей");
+      setHistoryData(result);
+      if (result.selectedDate) {
+        setSelectedHistoryDate(result.selectedDate);
+        const [year, month] = result.selectedDate.split("-").map(Number);
+        if (year && month) {
+          setCalendarMonth(new Date(year, month - 1, 1));
+        }
+      }
+    } catch (histError) {
+      setError(histError instanceof Error ? histError.message : "Не удалось загрузить историю");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
 
   const refreshAll = useCallback(async (quiet = false) => {
     if (!quiet) setError("");
@@ -565,7 +649,13 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
 
   function handleManualRefresh() {
     setRefreshAnimation((value) => value + 1);
-    void (view === "queues" ? refreshQueues() : refreshAll());
+    if (view === "queues") {
+      void refreshQueues();
+    } else if (view === "calendar") {
+      void loadHistory(selectedHistoryDate ?? undefined);
+    } else {
+      void refreshAll();
+    }
   }
 
   async function act(
@@ -697,12 +787,14 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
       ? { title: "Расписание по дням", description: "Только лабораторные и практические занятия." }
       : view === "queues"
         ? { title: "Твои очереди", description: "Порядок обновляется автоматически каждые 15 секунд." }
-        : {
-            title: initialUser.isSuperAdmin ? "Администрирование" : "Управление очередями",
-            description: initialUser.isSuperAdmin
-              ? "Управление правами участников и восстановление закрытых очередей."
-              : "Восстановление случайно закрытых очередей.",
-          };
+        : view === "calendar"
+          ? { title: "История очередей", description: "Календарь прошедших и текущих очередей с полным списком участников." }
+          : {
+              title: initialUser.isSuperAdmin ? "Администрирование" : "Управление очередями",
+              description: initialUser.isSuperAdmin
+                ? "Управление правами участников и восстановление закрытых очередей."
+                : "Восстановление случайно закрытых очередей.",
+            };
 
   return (
     <main className="app-shell">
@@ -728,18 +820,31 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
             <button className={view === "subjects" ? "active" : ""} onClick={() => setView("subjects")}><BookOpen size={18} /> Расписание</button>
             <button className={view === "queues" ? "active" : ""} onClick={() => setView("queues")}><Users size={18} /> <span className="tab-desktop">Мои очереди</span><span className="tab-mobile">Очереди</span> {myQueues.length > 0 && <b>{myQueues.length}</b>}</button>
             {(initialUser.isAdmin || initialUser.isSuperAdmin) && (
-              <button
-                className={view === "admins" ? "active" : ""}
-                onClick={() => {
-                  setView("admins");
-                  if (initialUser.isSuperAdmin) void loadAdminUsers();
-                  void loadClosedQueues();
-                }}
-              >
-                <ShieldCheck size={18} />{" "}
-                <span className="tab-desktop">{initialUser.isSuperAdmin ? "Администрирование" : "Управление"}</span>
-                <span className="tab-mobile">Админ</span>
-              </button>
+              <>
+                <button
+                  className={view === "calendar" ? "active" : ""}
+                  onClick={() => {
+                    setView("calendar");
+                    void loadHistory(selectedHistoryDate ?? undefined);
+                  }}
+                >
+                  <CalendarDays size={18} />{" "}
+                  <span className="tab-desktop">История</span>
+                  <span className="tab-mobile">История</span>
+                </button>
+                <button
+                  className={view === "admins" ? "active" : ""}
+                  onClick={() => {
+                    setView("admins");
+                    if (initialUser.isSuperAdmin) void loadAdminUsers();
+                    void loadClosedQueues();
+                  }}
+                >
+                  <ShieldCheck size={18} />{" "}
+                  <span className="tab-desktop">{initialUser.isSuperAdmin ? "Администрирование" : "Управление"}</span>
+                  <span className="tab-mobile">Админ</span>
+                </button>
+              </>
             )}
           </nav>
           <a className="source-link" href="https://iis.bsuir.by/schedule/420604" target="_blank" rel="noreferrer">Расписание БГУИР <ExternalLink size={14} /></a>
@@ -922,6 +1027,240 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                   </section>
                 ))
               )}
+            </div>
+          )}
+
+          {view === "calendar" && (initialUser.isAdmin || initialUser.isSuperAdmin) && (
+            <div className="history-container">
+              <div className="history-sidebar-layout">
+                <aside className="history-calendar-card">
+                  <div className="history-month-header">
+                    <button
+                      type="button"
+                      className="cal-nav-btn"
+                      onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                      title="Предыдущий месяц"
+                      aria-label="Предыдущий месяц"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <strong>
+                      {new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric", timeZone: "Europe/Minsk" }).format(calendarMonth)}
+                    </strong>
+                    <button
+                      type="button"
+                      className="cal-nav-btn"
+                      onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                      title="Следующий месяц"
+                      aria-label="Следующий месяц"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+
+                  <div className="history-calendar-grid">
+                    {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((dayName) => (
+                      <span className="cal-weekday" key={dayName}>{dayName}</span>
+                    ))}
+
+                    {(() => {
+                      const year = calendarMonth.getFullYear();
+                      const month = calendarMonth.getMonth();
+                      const daysInMonth = new Date(year, month + 1, 0).getDate();
+                      const startDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+                      const cells = [];
+
+                      for (let i = 0; i < startDayOffset; i++) {
+                        cells.push(<span className="cal-day empty" key={`empty-${i}`} />);
+                      }
+
+                      for (let d = 1; d <= daysInMonth; d++) {
+                        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                        const hasQueuesEntry = historyData?.dates.find((item) => item.date === dateStr);
+                        const isSelected = selectedHistoryDate === dateStr;
+                        cells.push(
+                          <button
+                            key={dateStr}
+                            type="button"
+                            className={`cal-day ${hasQueuesEntry ? "has-queues" : ""} ${isSelected ? "selected" : ""}`}
+                            onClick={() => void loadHistory(dateStr)}
+                            title={hasQueuesEntry ? `${d} числа: ${hasQueuesEntry.count} очер.` : undefined}
+                          >
+                            <span className="cal-day-num">{d}</span>
+                            {hasQueuesEntry && <span className="cal-day-dot" />}
+                          </button>
+                        );
+                      }
+                      return cells;
+                    })()}
+                  </div>
+
+                  {historyData?.dates && historyData.dates.length > 0 && (
+                    <div className="history-quick-section">
+                      <span className="quick-title">
+                        <CalendarDays size={13} /> Все дни с очередями:
+                      </span>
+                      <div className="quick-dates-list">
+                        {historyData.dates.map(({ date, count }) => (
+                          <button
+                            key={date}
+                            type="button"
+                            className={selectedHistoryDate === date ? "quick-date-item active" : "quick-date-item"}
+                            onClick={() => void loadHistory(date)}
+                          >
+                            <span>{formatHistoryPillDate(date)}</span>
+                            <span className="queue-pill-count">{count}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </aside>
+
+                <main className="history-main-panel">
+                  <div className="history-selected-header">
+                    <div>
+                      <h2>{formatHistoryDateHeader(selectedHistoryDate)}</h2>
+                      <p>
+                        {!historyData?.queues || historyData.queues.length === 0
+                          ? "Очереди отсутствуют"
+                          : `${historyData.queues.length} ${historyData.queues.length === 1 ? "очередь" : historyData.queues.length < 5 ? "очереди" : "очередей"}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {historyLoading ? (
+                    <div className="loading-state">
+                      <LoaderCircle className="spin" size={24} />
+                      <span>Загружаем очереди за выбранный день…</span>
+                    </div>
+                  ) : !historyData?.queues || historyData.queues.length === 0 ? (
+                    <div className="empty-state">
+                      <span><CalendarDays size={32} /></span>
+                      <h2>На этот день очередей нет</h2>
+                      <p>Выберите дату с отметкой в календаре слева, чтобы посмотреть прошедшие или текущие очереди.</p>
+                    </div>
+                  ) : (
+                    <div className="history-queues-stack">
+                      {historyData.queues.map((queue) => (
+                        <article className="history-queue-card" key={queue.id}>
+                          <div className="history-queue-head">
+                            <div>
+                              <div className="history-queue-tags">
+                                <span className="subject-code">{queue.subjectAbbrev}</span>
+                                <span className="subgroup-tag">
+                                  {queue.subgroup === 0 ? "Вся группа" : `${queue.subgroup}-я подгруппа`}
+                                </span>
+                                {queue.status === "open" ? (
+                                  <span className="live-badge"><i /> запись открыта</span>
+                                ) : (
+                                  <span className="locked-badge">очередь закрыта</span>
+                                )}
+                              </div>
+                              <h2>{queue.subjectName}</h2>
+                              <div className="history-queue-timing">
+                                <Clock3 size={14} />
+                                <span>{formatQueueDate(queue.lessonEndsAt)}</span>
+                              </div>
+                            </div>
+
+                            <div className="history-stats-bar">
+                              <span className="stat-pill stat-served" title="Сдали работу">
+                                <Check size={14} /> {queue.served.length} сдали
+                              </span>
+                              <span className="stat-pill stat-waiting" title="Остались в очереди">
+                                <Users size={14} /> {queue.waiting.length} в очереди
+                              </span>
+                              {queue.skipped.length > 0 && (
+                                <span className="stat-pill stat-skipped" title="Пропущены или вышли">
+                                  <X size={14} /> {queue.skipped.length} пропустили
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Сдали */}
+                          {queue.served.length > 0 && (
+                            <div className="history-section">
+                              <div className="history-section-title">
+                                <CheckCircle2 size={16} style={{ color: "#16a34a" }} />
+                                <strong>Сдали лабораторную ({queue.served.length})</strong>
+                              </div>
+                              <div className="history-people-list">
+                                {queue.served.map((entry) => (
+                                  <div className="history-person-row served" key={entry.id}>
+                                    <span className="person-pos check"><Check size={14} /></span>
+                                    <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
+                                    <div className="history-person-name">
+                                      <strong>{entry.displayName}</strong>
+                                      {entry.completedAt && (
+                                        <small>
+                                          Сдал(а) в {new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Minsk" }).format(new Date(entry.completedAt))}
+                                        </small>
+                                      )}
+                                    </div>
+                                    <span className="badge-served">Сдал</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* В очереди */}
+                          {queue.waiting.length > 0 && (
+                            <div className="history-section">
+                              <div className="history-section-title">
+                                <Clock3 size={16} style={{ color: "#2563eb" }} />
+                                <strong>В очереди на момент закрытия ({queue.waiting.length})</strong>
+                              </div>
+                              <div className="history-people-list">
+                                {queue.waiting.map((entry) => (
+                                  <div className="history-person-row waiting" key={entry.id}>
+                                    <span className="person-pos">№ {entry.position}</span>
+                                    <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
+                                    <div className="history-person-name">
+                                      <strong>{entry.displayName}</strong>
+                                      <small>Ожидал(а) очереди</small>
+                                    </div>
+                                    {entry.position === 1 && <span className="next-label">следующий</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Пропустили / Вышли */}
+                          {queue.skipped.length > 0 && (
+                            <div className="history-section">
+                              <div className="history-section-title">
+                                <X size={16} style={{ color: "#94a3b8" }} />
+                                <strong>Пропустили / Вышли ({queue.skipped.length})</strong>
+                              </div>
+                              <div className="history-people-list">
+                                {queue.skipped.map((entry) => (
+                                  <div className="history-person-row skipped" key={entry.id}>
+                                    <span className="person-pos skip"><X size={13} /></span>
+                                    <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
+                                    <div className="history-person-name">
+                                      <strong>{entry.displayName}</strong>
+                                      <small>{entry.status === "left" ? "Самостоятельно вышел из очереди" : "Пропущен администратором"}</small>
+                                    </div>
+                                    <span className="badge-skipped">{entry.status === "left" ? "Вышел" : "Пропущен"}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {queue.served.length === 0 && queue.waiting.length === 0 && queue.skipped.length === 0 && (
+                            <p className="empty-list">В этой очереди не было записей</p>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </main>
+              </div>
             </div>
           )}
 
