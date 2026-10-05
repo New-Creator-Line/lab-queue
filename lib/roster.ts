@@ -40,6 +40,7 @@ const rosterSource = [
   ["Хмара Матвей", "xxx_moti_xxx"],
   ["Шпаковская Василиса", "daratolkaa"],
   ["Янушковский Алексей", "lexayanush"],
+  ["Тестовый пользователь", "test_acc_dev"],
 ] as const;
 
 export const GROUP_ROSTER: readonly RosterMember[] = rosterSource.map(
