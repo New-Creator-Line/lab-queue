@@ -15,15 +15,17 @@ export async function GET(request: Request) {
 
     const db = getDb();
 
+    const dateExpr = sql<string>`TO_CHAR(COALESCE(${queues.lessonEndsAt}, ${queues.createdAt}) AT TIME ZONE 'Europe/Minsk', 'YYYY-MM-DD')`;
+
     // 1. Получаем все даты, в которых есть очереди
     const dateRows = await db
       .select({
-        date: sql<string>`TO_CHAR(COALESCE(${queues.lessonEndsAt}, ${queues.createdAt}) AT TIME ZONE 'Europe/Minsk', 'YYYY-MM-DD')`,
+        date: dateExpr,
         count: sql<number>`COUNT(${queues.id})::int`,
       })
       .from(queues)
-      .groupBy(sql`date`)
-      .orderBy(sql`date DESC`);
+      .groupBy(dateExpr)
+      .orderBy(sql`${dateExpr} DESC`);
 
     const availableDates = dateRows.map((r) => ({
       date: r.date,
@@ -42,9 +44,7 @@ export async function GET(request: Request) {
     const queueRows = await db
       .select()
       .from(queues)
-      .where(
-        sql`TO_CHAR(COALESCE(${queues.lessonEndsAt}, ${queues.createdAt}) AT TIME ZONE 'Europe/Minsk', 'YYYY-MM-DD') = ${selectedDate}`,
-      )
+      .where(sql`${dateExpr} = ${selectedDate}`)
       .orderBy(asc(queues.lessonEndsAt), asc(queues.id));
 
     if (queueRows.length === 0) {
