@@ -268,7 +268,7 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
   .hero-copy { text-align:center; }
   .hero-copy>p,.login-card { margin-left:auto; margin-right:auto; }
   .hero-visual { min-height:460px; }
-  .app-layout { display:block; width:100%; }
+  .app-layout { display:block; width:100%; max-width:100%; min-width:0; overflow-x:hidden; box-sizing:border-box; }
   .sidebar {
     border-right:0;
     border-bottom:1px solid #e1e6ed;
@@ -368,7 +368,7 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
   .onboarding-card h1 { font-size:26px; }
   .subgroup-grid,.subject-grid { grid-template-columns:1fr; gap:12px; }
 
-  .content { padding:20px 14px 44px; }
+  .content { padding:20px 14px 44px; max-width:100%; min-width:0; overflow-x:hidden; box-sizing:border-box; }
   .content-heading {
     align-items:flex-start;
     flex-direction:row;
@@ -488,40 +488,96 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
   .admin-status { margin-left:auto; }
   .admin-toggle { width:100%; min-height:36px; margin-top:4px; }
 
-  .history-container { width:100%; min-width:0; }
-  .history-sidebar-layout { grid-template-columns:1fr; gap:16px; width:100%; min-width:0; }
+  .history-container { width:100%; max-width:100%; min-width:0; overflow-x:hidden; box-sizing:border-box; }
+  .history-sidebar-layout { display:flex; flex-direction:column; gap:16px; width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
   .history-calendar-card {
     position: static;
     padding: 16px 12px;
     border-radius: 18px;
     gap: 14px;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .history-month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
   }
-  .history-month-header strong { font-size: 15px; }
-  .cal-nav-btn { width: 34px; height: 34px; }
-  .history-calendar-grid { gap: 3px; }
+  .history-month-header strong {
+    font-size: 15px;
+    font-weight: 750;
+    color: var(--ink);
+    text-transform: capitalize;
+    text-align: center;
+    min-width: 0;
+    flex: 1;
+  }
+  .cal-nav-btn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  .history-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
   .cal-weekday { font-size: 11px; padding: 4px 0; }
-  .cal-day { font-size: 12px; border-radius: 8px; }
+  .cal-day {
+    font-size: 13px;
+    border-radius: 9px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+    box-sizing: border-box;
+  }
   .cal-day-dot { bottom: 3px; width: 4px; height: 4px; }
+  .history-quick-section {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
   .quick-dates-list {
+    display: flex;
     flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
     max-height: none;
-    padding-bottom: 6px;
-    gap: 8px;
+    padding: 2px 2px 6px;
+    box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
     scrollbar-width: none;
     scroll-snap-type: x proximity;
   }
   .quick-dates-list::-webkit-scrollbar { display: none; }
   .quick-date-item {
-    flex-shrink: 0;
-    gap: 8px;
+    flex: 0 0 auto;
+    white-space: nowrap;
     scroll-snap-align: start;
-    padding: 6px 10px;
+    padding: 6px 11px;
     font-size: 11px;
+    gap: 8px;
   }
   .history-main-panel { width:100%; min-width:0; }
   .history-selected-header {
