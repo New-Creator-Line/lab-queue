@@ -546,6 +546,29 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     [todayKey],
   );
 
+  const [collapsedQueueDays, setCollapsedQueueDays] = useState<Record<string, boolean>>({});
+
+  const isQueueDayCollapsed = useCallback(
+    (key: string) => {
+      if (collapsedQueueDays[key] !== undefined) {
+        return collapsedQueueDays[key];
+      }
+      return key !== "without-date" && key < todayKey;
+    },
+    [collapsedQueueDays, todayKey],
+  );
+
+  const toggleQueueDayCollapse = useCallback(
+    (key: string) => {
+      setCollapsedQueueDays((prev) => {
+        const currentlyCollapsed =
+          prev[key] !== undefined ? prev[key] : key !== "without-date" && key < todayKey;
+        return { ...prev, [key]: !currentlyCollapsed };
+      });
+    },
+    [todayKey],
+  );
+
   const isRefreshing =
     refreshing ||
     (view === "calendar" && historyLoading) ||
@@ -1066,16 +1089,36 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
               {myQueues.length === 0 && !initialUser.isAdmin ? (
                 <div className="empty-state"><span><Users size={30} /></span><h2>Ты пока не записан</h2><p>Выбери предмет и нажми «Хочу сдавать».</p><button onClick={() => setView("subjects")}>К предметам <ArrowRight size={17} /></button></div>
               ) : (
-                queueDays.map((day) => (
-                  <section className="day-section queue-day-section" key={day.key}>
-                    <div className="day-heading">
-                      <div className="day-title">
-                        <h2>{formatQueueDay(day.date)}</h2>
-                        <span className="day-date">{formatQueueDayDate(day.date)}</span>
-                      </div>
-                      <span className="day-count">{queueCountLabel(day.queues.length)}</span>
-                    </div>
-                    <div className="queue-stack">
+                queueDays.map((day) => {
+                  const collapsed = isQueueDayCollapsed(day.key);
+                  return (
+                    <section className={`day-section queue-day-section ${collapsed ? "is-collapsed" : ""}`} key={day.key}>
+                      <button
+                        type="button"
+                        className={`day-heading day-heading-btn ${collapsed ? "is-collapsed" : ""}`}
+                        onClick={() => toggleQueueDayCollapse(day.key)}
+                        aria-expanded={!collapsed}
+                        title={collapsed ? "Развернуть очереди" : "Свернуть очереди"}
+                      >
+                        <div className="day-title">
+                          <span className="day-name">{formatQueueDay(day.date)}</span>
+                          <div className="day-subtitle">
+                            <span className="day-date">{formatQueueDayDate(day.date)}</span>
+                            {day.key === todayKey && <span className="today-badge">Сегодня</span>}
+                          </div>
+                        </div>
+                        <div className="day-heading-meta">
+                          <span className="day-count">{queueCountLabel(day.queues.length)}</span>
+                          <span className="day-collapse-icon" aria-hidden="true">
+                            <ChevronDown
+                              className={`day-collapse-chevron ${collapsed ? "is-collapsed" : ""}`}
+                              size={17}
+                            />
+                          </span>
+                        </div>
+                      </button>
+                      {!collapsed && (
+                        <div className="queue-stack">
                       {day.queues.map((queue) => {
                         const myEntry = queue.waiting.find((entry) => entry.telegramId === initialUser.telegramId);
                         return (
@@ -1151,9 +1194,11 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                           </article>
                         );
                       })}
-                    </div>
-                  </section>
-                ))
+                        </div>
+                      )}
+                    </section>
+                  );
+                })
               )}
             </div>
           )}
