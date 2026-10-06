@@ -1,8 +1,8 @@
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { queueEntries, queuePasses, queues, rotations, users } from "@/db/schema";
+import { queues } from "@/db/schema";
+import { computeQueueSequence } from "@/lib/queue-data";
 import { isQueueLocked } from "@/lib/queue-lock";
-import { getRosterMemberByUsername } from "@/lib/roster";
 import { requireCurrentUser } from "@/lib/telegram-auth";
 
 export async function GET(request: Request) {
@@ -53,125 +53,15 @@ export async function GET(request: Request) {
       return Response.json({ dates: availableDates, selectedDate, queues: [] });
     }
 
-    const queueIds = queueRows.map((q) => q.id);
-
-    // 3. Загружаем участников, ротации и пропуски
-    const [entryRows, passRows, rotationRows] = await Promise.all([
-      db
-        .select({ entry: queueEntries, user: users })
-        .from(queueEntries)
-        .innerJoin(users, eq(queueEntries.telegramId, users.telegramId))
-        .where(inArray(queueEntries.queueId, queueIds))
-        .orderBy(asc(queueEntries.joinedAt)),
-      db
-        .select()
-        .from(queuePasses)
-        .where(inArray(queuePasses.queueId, queueIds))
-        .orderBy(queuePasses.id),
-      db
-        .select({
-          rotation: rotations,
-          lastServedUsername: users.username,
-        })
-        .from(rotations)
-        .leftJoin(users, eq(rotations.lastServedTelegramId, users.telegramId)),
-    ]);
-
-    const entriesByQueue = new Map<number, (typeof entryRows)[number][]>();
-    for (const row of entryRows) {
-      const list = entriesByQueue.get(row.entry.queueId) ?? [];
-      list.push(row);
-      entriesByQueue.set(row.entry.queueId, list);
-    }
-
-    const passesByQueue = new Map<number, (typeof passRows)[number][]>();
-    for (const pass of passRows) {
-      const list = passesByQueue.get(pass.queueId) ?? [];
-      list.push(pass);
-      passesByQueue.set(pass.queueId, list);
-    }
-
-    const rotationsBySubject = new Map(
-      rotationRows.map((row) => [
-        `${row.rotation.subjectKey}\u0000${row.rotation.subgroup}`,
-        row,
-      ]),
-    );
+    // 3. Вычисляем состояние очередей с учетом истории и ротации
+    const subjectKeys = [...new Set(queueRows.map((q) => q.subjectKey))];
+    const detailsMap = await computeQueueSequence(subjectKeys);
 
     const detailedQueues = queueRows.map((queue) => {
-      const rows = entriesByQueue.get(queue.id) ?? [];
-      const passes = passesByQueue.get(queue.id) ?? [];
-      const rotation = rotationsBySubject.get(`${queue.subjectKey}\u0000${queue.subgroup}`);
-      const lastOrder = rotation?.lastServedUsername
-        ? (getRosterMemberByUsername(rotation.lastServedUsername)?.listNumber ?? 0)
-        : 0;
-
-      // Ожидающие с учетом ротации и уступленных мест
-      const waitingRows = rows
-        .filter(({ entry }) => entry.status === "waiting")
-        .sort((left, right) => {
-          const leftOrder =
-            getRosterMemberByUsername(left.user.username)?.listNumber ?? Number.MAX_SAFE_INTEGER;
-          const rightOrder =
-            getRosterMemberByUsername(right.user.username)?.listNumber ?? Number.MAX_SAFE_INTEGER;
-          const leftSection = leftOrder > lastOrder ? 0 : 1;
-          const rightSection = rightOrder > lastOrder ? 0 : 1;
-          return leftSection - rightSection || leftOrder - rightOrder;
-        });
-
-      for (const pass of passes) {
-        if (pass.cycle !== queue.currentCycle) continue;
-        const passerIndex = waitingRows.findIndex(
-          ({ user }) => user.telegramId === pass.passerTelegramId,
-        );
-        const promotedIndex = waitingRows.findIndex(
-          ({ user }) => user.telegramId === pass.promotedTelegramId,
-        );
-        if (passerIndex === -1 || promotedIndex === -1 || passerIndex >= promotedIndex) continue;
-        const [promoted] = waitingRows.splice(promotedIndex, 1);
-        waitingRows.splice(passerIndex, 0, promoted);
-      }
-
-      const waiting = waitingRows.map(({ entry, user }, index) => ({
-        id: entry.id,
-        telegramId: user.telegramId,
-        displayName: user.displayName,
-        username: user.username,
-        subgroup: user.subgroup,
-        status: "waiting" as const,
-        position: index + 1,
-        joinedAt: entry.joinedAt,
-      }));
-
-      // Сдавшие студенты (по времени завершения)
-      const served = rows
-        .filter(({ entry }) => entry.status === "served")
-        .sort((a, b) => (a.entry.completedAt ?? a.entry.joinedAt).localeCompare(b.entry.completedAt ?? b.entry.joinedAt))
-        .map(({ entry, user }, index) => ({
-          id: entry.id,
-          telegramId: user.telegramId,
-          displayName: user.displayName,
-          username: user.username,
-          subgroup: user.subgroup,
-          status: "served" as const,
-          position: index + 1,
-          joinedAt: entry.joinedAt,
-          completedAt: entry.completedAt,
-        }));
-
-      // Пропустившие или вышедшие
-      const skipped = rows
-        .filter(({ entry }) => entry.status === "skipped" || entry.status === "left")
-        .map(({ entry, user }) => ({
-          id: entry.id,
-          telegramId: user.telegramId,
-          displayName: user.displayName,
-          username: user.username,
-          subgroup: user.subgroup,
-          status: entry.status as "skipped" | "left",
-          joinedAt: entry.joinedAt,
-          completedAt: entry.completedAt,
-        }));
+      const details = detailsMap.get(queue.id);
+      const waiting = details?.waiting ?? [];
+      const served = details?.served ?? [];
+      const skipped = details?.skipped ?? [];
 
       return {
         id: queue.id,
@@ -188,7 +78,7 @@ export async function GET(request: Request) {
         served,
         waiting,
         skipped,
-        totalEntries: rows.length,
+        totalEntries: waiting.length + served.length + skipped.length,
       };
     });
 
