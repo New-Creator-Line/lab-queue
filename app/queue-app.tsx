@@ -508,6 +508,11 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
+  const isRefreshing =
+    refreshing ||
+    (view === "calendar" && historyLoading) ||
+    (view === "admins" && (closedQueuesLoading || adminUsersLoading));
+
   const loadHistory = useCallback(async (date?: string) => {
     setHistoryLoading(true);
     setError("");
@@ -677,6 +682,10 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
       void refreshQueues();
     } else if (view === "calendar") {
       void loadHistory(selectedHistoryDate ?? undefined);
+    } else if (view === "admins") {
+      if (initialUser.isSuperAdmin) void loadAdminUsers();
+      void loadClosedQueues();
+      void refreshQueues();
     } else {
       void refreshAll();
     }
@@ -903,22 +912,26 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
         <section className="content">
           <div className="content-heading">
             <div><span className="eyebrow light">Подгруппа {initialUser.subgroup}</span><h1>{viewHeading.title}</h1><p>{viewHeading.description}</p></div>
-            {view !== "admins" && (
-              <button
-                className="refresh-button"
-                disabled={refreshing}
-                onClick={handleManualRefresh}
-                title="Обновить расписание и очереди"
-                aria-label="Обновить"
-              >
-                <RefreshCw
-                  className={refreshAnimation > 0 ? "refresh-turn" : undefined}
-                  key={refreshAnimation}
-                  size={17}
-                />
-                <span className="refresh-label">{refreshing ? "Обновляем…" : "Обновить"}</span>
-              </button>
-            )}
+            <button
+              className="refresh-button"
+              disabled={isRefreshing}
+              onClick={handleManualRefresh}
+              title={
+                view === "admins"
+                  ? "Обновить данные панели администратора"
+                  : view === "calendar"
+                  ? "Обновить историю очередей"
+                  : "Обновить расписание и очереди"
+              }
+              aria-label="Обновить"
+            >
+              <RefreshCw
+                className={refreshAnimation > 0 || isRefreshing ? "refresh-turn" : undefined}
+                key={refreshAnimation}
+                size={17}
+              />
+              <span className="refresh-label">{isRefreshing ? "Обновляем…" : "Обновить"}</span>
+            </button>
           </div>
 
           {error && <div className="error-banner"><X size={17} />{error}</div>}
@@ -1322,16 +1335,6 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                     <strong>Недавно закрытые очереди</strong>
                     <p>Если вы случайно закрыли очередь, её можно восстановить одним нажатием. Студенты вернутся на свои места в очереди.</p>
                   </div>
-                  <button
-                    className="icon-button"
-                    style={{ width: "36px", height: "36px", flexShrink: 0 }}
-                    type="button"
-                    disabled={closedQueuesLoading}
-                    onClick={() => void loadClosedQueues()}
-                    title="Обновить список закрытых очередей"
-                  >
-                    <RefreshCw className={closedQueuesLoading ? "refresh-turn" : undefined} size={16} />
-                  </button>
                 </div>
                 {closedQueuesLoading && closedQueues.length === 0 ? (
                   <div className="admin-users-loading"><LoaderCircle className="spin" size={20} /> Загружаем закрытые очереди…</div>
