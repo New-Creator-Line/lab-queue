@@ -115,11 +115,40 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
 .schedule-week-heading small { color:#c9d2e1; font-size:12px; font-weight:650; }
 .day-section { display:flex; flex-direction:column; gap:14px; }
 .day-heading { display:flex; align-items:center; gap:11px; padding-bottom:10px; border-bottom:1px solid #dfe5ec; }
-.day-heading::before { content:""; width:5px; height:24px; border-radius:999px; background:var(--blue); }
-.day-title { display:flex; align-items:baseline; gap:9px; }
-.day-heading h2 { margin:0; font-size:20px; letter-spacing:-.025em; }
+.day-heading::before { content:""; width:5px; height:24px; border-radius:999px; background:var(--blue); flex-shrink:0; }
+.day-heading h2, .day-heading .day-name { margin:0; font-size:20px; font-weight:750; letter-spacing:-.025em; color:var(--ink); }
+.day-title { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.day-subtitle { display:flex; align-items:center; gap:7px; }
 .day-date { color:var(--blue); font-size:12px; font-weight:750; }
-.day-count { margin-left:auto; color:#7d899b; font-size:11px; font-weight:700; }
+.today-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:6px; background:#eaf0ff; color:var(--blue); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; line-height:1.2; }
+.day-count { color:#7d899b; font-size:11px; font-weight:700; }
+.day-heading-meta { margin-left:auto; display:flex; align-items:center; gap:10px; }
+.day-heading-btn {
+  width:100%;
+  border:0;
+  border-bottom:1px solid #dfe5ec;
+  background:transparent;
+  padding:4px 6px 10px 4px;
+  margin:0;
+  font-family:inherit;
+  color:inherit;
+  text-align:left;
+  cursor:pointer;
+  -webkit-appearance:none;
+  appearance:none;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  border-radius:10px 10px 0 0;
+  transition:background-color .15s ease, opacity .15s ease;
+}
+.day-heading-btn:hover { background:rgba(36,87,245,0.035); }
+.day-heading-btn:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.day-heading-btn.is-collapsed { opacity:.82; }
+.day-heading-btn.is-collapsed:hover { opacity:1; }
+.day-collapse-icon { display:grid; place-items:center; width:28px; height:28px; border-radius:8px; background:#f1f5fa; color:#556174; transition:all .15s ease; flex-shrink:0; }
+.day-heading-btn:hover .day-collapse-icon { background:#e4ebf5; color:var(--blue); }
+.day-collapse-chevron { transition:transform .2s cubic-bezier(0.4, 0, 0.2, 1); }
+.day-collapse-chevron.is-collapsed { transform:rotate(-90deg); }
 .subject-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 .subject-card { min-height:235px; background:white; border:1px solid #dfe5ec; border-radius:20px; padding:22px; display:flex; flex-direction:column; box-shadow:0 8px 26px rgba(25,45,80,.045); animation:card-in .35s both; animation-delay:var(--delay); }
 .subject-card.is-past { background:#f8fafc; border-color:#e5e9ef; }
@@ -459,9 +488,11 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
   .schedule-week-heading small { font-size:11px; }
 
   .day-heading { gap:8px; padding-bottom:8px; }
-  .day-heading h2 { font-size:17px; }
+  .day-heading h2, .day-heading .day-name { font-size:17px; }
   .day-date { font-size:11px; }
   .day-title { align-items:flex-start; flex-direction:column; gap:2px; }
+  .day-collapse-icon { width:26px; height:26px; border-radius:7px; }
+  .day-heading-meta { gap:8px; }
 
   .subject-card {
     min-height:auto;
@@ -797,8 +828,24 @@ html.dark .telegram-retry {
   border-color: #334155 !important;
   color: #60a5fa !important;
 }
-html.dark .day-heading {
+html.dark .day-heading,
+html.dark .day-heading-btn {
   border-bottom-color: #1e293b !important;
+}
+html.dark .day-heading-btn:hover {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+html.dark .today-badge {
+  background: #1e293b !important;
+  color: #60a5fa !important;
+}
+html.dark .day-collapse-icon {
+  background: #172338 !important;
+  color: #94a3b8 !important;
+}
+html.dark .day-heading-btn:hover .day-collapse-icon {
+  background: #1e2e4a !important;
+  color: #60a5fa !important;
 }
 html.dark .card-bottom {
   border-top-color: #1e293b !important;

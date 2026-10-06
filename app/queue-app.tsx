@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -216,6 +217,17 @@ function queueDateKey(value: string | null) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+function getTodayDateKey(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Europe/Minsk",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function formatQueueDay(value: string | null) {
   if (!value) return "Без даты";
   const date = parseIsoOrSqlDate(value);
@@ -246,6 +258,15 @@ function queueCountLabel(count: number) {
   if (last === 1) return `${count} очередь`;
   if (last >= 2 && last <= 4) return `${count} очереди`;
   return `${count} очередей`;
+}
+
+function lessonCountLabel(count: number) {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return "занятий";
+  if (last === 1) return "занятие";
+  if (last >= 2 && last <= 4) return "занятия";
+  return "занятий";
 }
 
 function lessonEndTimestamp(date: string, lessonTime: string) {
@@ -507,6 +528,23 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
+  const todayKey = useMemo(() => getTodayDateKey(), []);
+
+  const isDayCollapsed = useCallback(
+    (date: string) => (collapsedDays[date] !== undefined ? collapsedDays[date] : date < todayKey),
+    [collapsedDays, todayKey],
+  );
+
+  const toggleDayCollapse = useCallback(
+    (date: string) => {
+      setCollapsedDays((prev) => {
+        const currentlyCollapsed = prev[date] !== undefined ? prev[date] : date < todayKey;
+        return { ...prev, [date]: !currentlyCollapsed };
+      });
+    },
+    [todayKey],
+  );
 
   const isRefreshing =
     refreshing ||
@@ -947,49 +985,76 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                       <div><span>{weekOffset === 0 ? "Текущая неделя" : "Следующая неделя"}</span><strong>Неделя №{weekNumber}</strong></div>
                       <small>{formatScheduleDate(days[0].date)} — {formatScheduleDate(days[days.length - 1].date)}</small>
                     </div>
-                    {days.map(({ day, date, items }) => (
-                      <section className="day-section" key={date}>
-                        <div className="day-heading">
-                          <div className="day-title"><h2>{day}</h2><span className="day-date">{formatScheduleDate(date)}</span></div>
-                          <span className="day-count">{items.length} {items.length === 1 ? "занятие" : "занятия"}</span>
-                        </div>
-                        <div className="subject-grid">
-                          {items.map(({ subject, lesson }, index) => {
-                            const queueSubgroup = lesson.subgroup === 0 ? 0 : initialUser.subgroup;
-                            const lessonEnd = lessonEndTimestamp(lesson.date, lesson.time);
-                            const existingQueue = data.queues.find(
-                              (item) =>
-                                item.subjectKey === subject.key &&
-                                item.subgroup === queueSubgroup &&
-                                item.lessonEndsAt !== null &&
-                                Date.parse(item.lessonEndsAt) === lessonEnd,
-                            );
-                            const queue = existingQueue?.isLocked && !lesson.isPast ? undefined : existingQueue;
-                            const myEntry = queue?.waiting.find((entry) => entry.telegramId === initialUser.telegramId);
-                            const key = `${subject.key}-${date}-${lesson.time}-${lesson.type}`;
-                            return (
-                              <article className={lesson.isPast ? "subject-card is-past" : "subject-card"} key={key} style={{ "--delay": `${index * 35}ms` } as React.CSSProperties}>
-                                <div className="subject-top"><span className="subject-code">{subject.abbrev}</span><div className="type-tags"><span>{lesson.type}</span><span className="subgroup-tag">{lesson.subgroup === 0 ? "Вся группа" : `${lesson.subgroup}-я подгруппа`}</span></div></div>
-                                <h2>{subject.name}</h2>
-                                <div className="lesson-line"><Clock3 size={15} /><span>{lesson.time}</span><span className="dot">·</span><DoorOpen size={15} /><span>{lesson.room}</span></div>
-                                <div className="card-bottom">
-                                  {queue ? <span className="queue-count"><Users size={16} /> {queue.waiting.length} в очереди</span> : <span className="queue-empty">Очередь пока пуста</span>}
-                                  {lesson.isPast ? (
-                                    <button className="past-button" disabled>Занятие прошло</button>
-                                  ) : myEntry ? (
-                                    <button className="joined-button" onClick={() => setView("queues")}><CheckCircle2 size={18} /> Вы №{myEntry.position}<ChevronRight size={17} /></button>
-                                  ) : (
-                                    <button className="join-button" disabled={pendingKey === subject.key} onClick={() => act("/api/queue/join", { subjectKey: subject.key, lessonDate: lesson.date, lessonTime: lesson.time, lessonType: lesson.type }, subject.key)}>
-                                      {pendingKey === subject.key ? <LoaderCircle className="spin" size={18} /> : <>Хочу сдавать <ArrowRight size={17} /></>}
-                                    </button>
-                                  )}
-                                </div>
-                              </article>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    ))}
+                    {days.map(({ day, date, items }) => {
+                      const collapsed = isDayCollapsed(date);
+                      return (
+                        <section className={`day-section ${collapsed ? "is-collapsed" : ""}`} key={date}>
+                          <button
+                            type="button"
+                            className={`day-heading day-heading-btn ${collapsed ? "is-collapsed" : ""}`}
+                            onClick={() => toggleDayCollapse(date)}
+                            aria-expanded={!collapsed}
+                            title={collapsed ? "Развернуть занятия" : "Свернуть занятия"}
+                          >
+                            <div className="day-title">
+                              <span className="day-name">{day}</span>
+                              <div className="day-subtitle">
+                                <span className="day-date">{formatScheduleDate(date)}</span>
+                                {date === todayKey && <span className="today-badge">Сегодня</span>}
+                              </div>
+                            </div>
+                            <div className="day-heading-meta">
+                              <span className="day-count">
+                                {items.length} {lessonCountLabel(items.length)}
+                              </span>
+                              <span className="day-collapse-icon" aria-hidden="true">
+                                <ChevronDown
+                                  className={`day-collapse-chevron ${collapsed ? "is-collapsed" : ""}`}
+                                  size={17}
+                                />
+                              </span>
+                            </div>
+                          </button>
+                          {!collapsed && (
+                            <div className="subject-grid">
+                              {items.map(({ subject, lesson }, index) => {
+                                const queueSubgroup = lesson.subgroup === 0 ? 0 : initialUser.subgroup;
+                                const lessonEnd = lessonEndTimestamp(lesson.date, lesson.time);
+                                const existingQueue = data.queues.find(
+                                  (item) =>
+                                    item.subjectKey === subject.key &&
+                                    item.subgroup === queueSubgroup &&
+                                    item.lessonEndsAt !== null &&
+                                    Date.parse(item.lessonEndsAt) === lessonEnd,
+                                );
+                                const queue = existingQueue?.isLocked && !lesson.isPast ? undefined : existingQueue;
+                                const myEntry = queue?.waiting.find((entry) => entry.telegramId === initialUser.telegramId);
+                                const key = `${subject.key}-${date}-${lesson.time}-${lesson.type}`;
+                                return (
+                                  <article className={lesson.isPast ? "subject-card is-past" : "subject-card"} key={key} style={{ "--delay": `${index * 35}ms` } as React.CSSProperties}>
+                                    <div className="subject-top"><span className="subject-code">{subject.abbrev}</span><div className="type-tags"><span>{lesson.type}</span><span className="subgroup-tag">{lesson.subgroup === 0 ? "Вся группа" : `${lesson.subgroup}-я подгруппа`}</span></div></div>
+                                    <h2>{subject.name}</h2>
+                                    <div className="lesson-line"><Clock3 size={15} /><span>{lesson.time}</span><span className="dot">·</span><DoorOpen size={15} /><span>{lesson.room}</span></div>
+                                    <div className="card-bottom">
+                                      {queue ? <span className="queue-count"><Users size={16} /> {queue.waiting.length} в очереди</span> : <span className="queue-empty">Очередь пока пуста</span>}
+                                      {lesson.isPast ? (
+                                        <button className="past-button" disabled>Занятие прошло</button>
+                                      ) : myEntry ? (
+                                        <button className="joined-button" onClick={() => setView("queues")}><CheckCircle2 size={18} /> Вы №{myEntry.position}<ChevronRight size={17} /></button>
+                                      ) : (
+                                        <button className="join-button" disabled={pendingKey === subject.key} onClick={() => act("/api/queue/join", { subjectKey: subject.key, lessonDate: lesson.date, lessonTime: lesson.time, lessonType: lesson.type }, subject.key)}>
+                                          {pendingKey === subject.key ? <LoaderCircle className="spin" size={18} /> : <>Хочу сдавать <ArrowRight size={17} /></>}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </article>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </section>
+                      );
+                    })}
                   </section>
                 ))}
               </div>
