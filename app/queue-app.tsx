@@ -1200,8 +1200,8 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                   ) : !historyData?.queues || historyData.queues.length === 0 ? (
                     <div className="empty-state">
                       <span><CalendarDays size={32} /></span>
-                      <h2>На этот день очередей нет</h2>
-                      <p>Выберите дату с отметкой в календаре слева, чтобы посмотреть прошедшие или текущие очереди.</p>
+                      <h2>В этот день нет записи</h2>
+                      <p>Занятия не проводились или очереди не создавались. Выберите дату с синей точкой в календаре, чтобы посмотреть историю.</p>
                     </div>
                   ) : (
                     <div className="history-queues-stack">

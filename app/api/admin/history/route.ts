@@ -33,10 +33,12 @@ export async function GET(request: Request) {
     }));
 
     if (availableDates.length === 0) {
-      return Response.json({ dates: [], selectedDate: null, queues: [] });
+      const fallbackDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : null;
+      return Response.json({ dates: [], selectedDate: fallbackDate, queues: [] });
     }
 
-    const selectedDate = requestedDate && availableDates.some((d) => d.date === requestedDate)
+    const isValidRequestedDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate);
+    const selectedDate = isValidRequestedDate
       ? requestedDate
       : availableDates[0].date;
 
