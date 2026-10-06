@@ -169,10 +169,10 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
 .pass-button { color:#3159c9; border-color:#cfdaff; background:#f3f6ff; }
 .complete-button:disabled,.pass-button:disabled,.leave-button:disabled { opacity:.55; cursor:not-allowed; }
 .close-button { color:#a43c34; border-color:#efd3cf; background:#fff7f6; }
-.empty-state { background:white; border:1px dashed #ccd5e1; border-radius:20px; }
-.empty-state>span { width:62px; height:62px; border-radius:18px; display:grid; place-items:center; background:#eaf0ff; color:var(--blue); }
-.empty-state h2 { margin:5px 0 0; color:var(--ink); }
-.empty-state p { margin:0; }
+.empty-state { background:white; border:1px dashed #ccd5e1; border-radius:20px; padding:36px 24px; text-align:center; box-sizing:border-box; }
+.empty-state>span { width:62px; height:62px; border-radius:18px; display:grid; place-items:center; background:#eaf0ff; color:var(--blue); flex-shrink:0; }
+.empty-state h2 { margin:4px 0 0; color:var(--ink); font-size:18px; font-weight:750; text-align:center; }
+.empty-state p { margin:0; color:var(--muted); font-size:13px; line-height:1.55; max-width:380px; text-align:center; }
 .empty-state button { margin-top:8px; border:0; color:white; background:var(--blue); border-radius:10px; padding:10px 13px; display:flex; align-items:center; gap:7px; }
 .empty-list { color:#8b95a5; text-align:center; padding:20px; }
 .admin-views-stack { display:flex; flex-direction:column; gap:20px; max-width:860px; }
@@ -967,6 +967,12 @@ html.dark .empty-state {
 html.dark .empty-state>span {
   background: #1e293b !important;
   color: #60a5fa !important;
+}
+html.dark .empty-state h2 {
+  color: var(--ink) !important;
+}
+html.dark .empty-state p {
+  color: var(--muted) !important;
 }
 html.dark .admin-users-intro {
   border-bottom-color: #1e293b !important;
