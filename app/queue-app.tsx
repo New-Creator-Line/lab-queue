@@ -841,14 +841,37 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
         <aside className="sidebar">
           <div className="semester-card"><span>Осенний семестр</span><strong>3 курс · ФИТУ</strong><small>Группа 420604</small></div>
           <nav>
-            <button className={view === "subjects" ? "active" : ""} onClick={() => setView("subjects")}><BookOpen size={18} /> Расписание</button>
-            <button className={view === "queues" ? "active" : ""} onClick={() => setView("queues")}><Users size={18} /> <span className="tab-desktop">Мои очереди</span><span className="tab-mobile">Очереди</span> {myQueues.length > 0 && <b>{myQueues.length}</b>}</button>
+            <button
+              className={view === "subjects" ? "active" : ""}
+              onClick={() => {
+                if (view !== "subjects") {
+                  setView("subjects");
+                  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" });
+                }
+              }}
+            >
+              <BookOpen size={18} /> <span>Расписание</span>
+            </button>
+            <button
+              className={view === "queues" ? "active" : ""}
+              onClick={() => {
+                if (view !== "queues") {
+                  setView("queues");
+                  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" });
+                }
+              }}
+            >
+              <Users size={18} /> <span className="tab-desktop">Мои очереди</span><span className="tab-mobile">Очереди</span> {myQueues.length > 0 && <b>{myQueues.length}</b>}
+            </button>
             {(initialUser.isAdmin || initialUser.isSuperAdmin) && (
               <>
                 <button
                   className={view === "calendar" ? "active" : ""}
                   onClick={() => {
-                    setView("calendar");
+                    if (view !== "calendar") {
+                      setView("calendar");
+                      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" });
+                    }
                     void loadHistory(selectedHistoryDate ?? undefined);
                   }}
                 >
@@ -859,7 +882,10 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                 <button
                   className={view === "admins" ? "active" : ""}
                   onClick={() => {
-                    setView("admins");
+                    if (view !== "admins") {
+                      setView("admins");
+                      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" });
+                    }
                     if (initialUser.isSuperAdmin) void loadAdminUsers();
                     void loadClosedQueues();
                   }}
