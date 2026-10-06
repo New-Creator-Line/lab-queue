@@ -140,35 +140,49 @@ type HistoryData = {
   queues: HistoryQueue[];
 };
 
+function parseIsoOrSqlDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  let normalized = value.trim();
+  if (normalized.includes(" ") && !normalized.includes("T")) {
+    normalized = normalized.replace(" ", "T");
+  }
+  // Ensure timezone offset has minutes: +03 -> +03:00
+  normalized = normalized.replace(/([+-]\d{2})$/, "$1:00");
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function formatHistoryDateHeader(dateStr: string | null) {
   if (!dateStr) return "Выберите дату";
-  const date = new Date(`${dateStr}T12:00:00+03:00`);
-  if (Number.isNaN(date.getTime())) return dateStr;
+  const date = parseIsoOrSqlDate(`${dateStr}T12:00:00+03:00`);
+  if (!date) return dateStr;
   const weekday = new Intl.DateTimeFormat("ru-RU", { weekday: "long", timeZone: "Europe/Minsk" }).format(date);
   const formattedDate = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Minsk" }).format(date);
   return `${weekday.slice(0, 1).toUpperCase() + weekday.slice(1)}, ${formattedDate}`;
 }
 
 function formatHistoryPillDate(dateStr: string) {
-  const date = new Date(`${dateStr}T12:00:00+03:00`);
-  if (Number.isNaN(date.getTime())) return dateStr;
+  const date = parseIsoOrSqlDate(`${dateStr}T12:00:00+03:00`);
+  if (!date) return dateStr;
   const day = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", timeZone: "Europe/Minsk" }).format(date);
   const weekday = new Intl.DateTimeFormat("ru-RU", { weekday: "short", timeZone: "Europe/Minsk" }).format(date);
   return `${day} (${weekday})`;
 }
 
 function formatScheduleDate(date: string) {
+  const parsed = parseIsoOrSqlDate(`${date}T12:00:00+03:00`);
+  if (!parsed) return date;
   return new Intl.DateTimeFormat("ru-RU", {
     day: "numeric",
     month: "long",
     timeZone: "Europe/Minsk",
-  }).format(new Date(`${date}T12:00:00+03:00`));
+  }).format(parsed);
 }
 
 function formatQueueDate(value: string | null) {
   if (!value) return "Дата занятия не указана";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Дата занятия не указана";
+  const date = parseIsoOrSqlDate(value);
+  if (!date) return "Дата занятия не указана";
   return new Intl.DateTimeFormat("ru-RU", {
     weekday: "long",
     day: "numeric",
@@ -178,10 +192,20 @@ function formatQueueDate(value: string | null) {
   }).format(date);
 }
 
+function formatCompletedTime(value: string | null | undefined): string | null {
+  const date = parseIsoOrSqlDate(value);
+  if (!date) return null;
+  return new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Minsk",
+  }).format(date);
+}
+
 function queueDateKey(value: string | null) {
   if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
+  const date = parseIsoOrSqlDate(value);
+  if (!date) return null;
   const parts = new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",
@@ -194,8 +218,8 @@ function queueDateKey(value: string | null) {
 
 function formatQueueDay(value: string | null) {
   if (!value) return "Без даты";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Без даты";
+  const date = parseIsoOrSqlDate(value);
+  if (!date) return "Без даты";
   const day = new Intl.DateTimeFormat("ru-RU", {
     weekday: "long",
     timeZone: "Europe/Minsk",
@@ -205,8 +229,8 @@ function formatQueueDay(value: string | null) {
 
 function formatQueueDayDate(value: string | null) {
   if (!value) return "Дата занятия не указана";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Дата занятия не указана";
+  const date = parseIsoOrSqlDate(value);
+  if (!date) return "Дата занятия не указана";
   return new Intl.DateTimeFormat("ru-RU", {
     day: "numeric",
     month: "long",
@@ -1071,7 +1095,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                       const cells = [];
 
                       for (let i = 0; i < startDayOffset; i++) {
-                        cells.push(<span className="cal-day empty" key={`empty-${i}`} />);
+                        cells.push(<span className="cal-day empty" key={`empty-${i}`} aria-hidden="true" />);
                       }
 
                       for (let d = 1; d <= daysInMonth; d++) {
@@ -1195,7 +1219,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                       <strong>{entry.displayName}</strong>
                                       {entry.completedAt && (
                                         <small>
-                                          Сдал(а) в {new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Minsk" }).format(new Date(entry.completedAt))}
+                                          Сдал(а) в {formatCompletedTime(entry.completedAt) ?? "—"}
                                         </small>
                                       )}
                                     </div>
@@ -1308,7 +1332,12 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                             )}
                             {queue.closedAt && (
                               <span className="closed-time">
-                                Закрыта {new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short", timeZone: "Europe/Minsk" }).format(new Date(queue.closedAt))}
+                                {(() => {
+                                  const d = parseIsoOrSqlDate(queue.closedAt);
+                                  return d
+                                    ? `Закрыта ${new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short", timeZone: "Europe/Minsk" }).format(d)}`
+                                    : "Закрыта";
+                                })()}
                               </span>
                             )}
                           </div>
