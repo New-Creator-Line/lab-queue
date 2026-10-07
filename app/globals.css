@@ -205,7 +205,18 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
 .empty-state button { margin-top:8px; border:0; color:white; background:var(--blue); border-radius:10px; padding:10px 13px; display:flex; align-items:center; gap:7px; }
 .empty-list { color:#8b95a5; text-align:center; padding:20px; }
 .admin-views-stack { display:flex; flex-direction:column; gap:20px; max-width:860px; }
-.admin-users-card, .admin-closed-queues-card { width:100%; max-width:860px; background:white; border:1px solid var(--line); border-radius:21px; padding:24px; box-shadow:0 8px 26px rgba(25,45,80,.045); box-sizing:border-box; }
+.admin-users-card, .admin-closed-queues-card, .admin-reset-card { width:100%; max-width:860px; background:white; border:1px solid var(--line); border-radius:21px; padding:24px; box-shadow:0 8px 26px rgba(25,45,80,.045); box-sizing:border-box; }
+.admin-card-header-with-icon { display:flex; align-items:center; gap:9px; }
+.admin-card-header-with-icon .admin-card-icon { color:var(--blue); flex-shrink:0; }
+.admin-reset-form { display:flex; align-items:center; gap:14px; padding-top:18px; flex-wrap:wrap; }
+.admin-reset-select-group { display:flex; align-items:center; gap:10px; flex:1; min-width:240px; }
+.admin-reset-select-group label { font-size:12px; font-weight:700; color:var(--muted); flex-shrink:0; }
+.admin-reset-select { flex:1; min-height:38px; padding:7px 12px; border:1px solid #d9e0e9; border-radius:10px; background:#fbfcfe; color:var(--ink); font-size:13px; font-weight:600; outline:none; transition:border-color .15s ease; }
+.admin-reset-select:focus { border-color:var(--blue); }
+.admin-reset-submit-button { min-height:38px; padding:8px 16px; border:1px solid #fed7aa; border-radius:10px; color:#c2410c; background:#fff7ed; font-size:12px; font-weight:750; display:flex; align-items:center; justify-content:center; gap:7px; cursor:pointer; transition:all 0.15s ease; flex-shrink:0; }
+.admin-reset-submit-button:hover:not(:disabled) { background:#ea580c; border-color:#ea580c; color:#ffffff; }
+.admin-reset-submit-button:disabled { opacity:0.5; cursor:not-allowed; }
+.admin-reset-success-alert { margin-top:16px; padding:10px 14px; border-radius:11px; background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; font-size:12px; font-weight:650; display:flex; align-items:center; gap:8px; animation:card-in .25s ease both; }
 .admin-users-intro { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; padding-bottom:18px; border-bottom:1px solid #e7ebf0; }
 .admin-users-intro strong { font-size:18px; }
 .admin-users-intro p { margin:6px 0 0; color:var(--muted); font-size:12px; line-height:1.5; }
@@ -558,7 +569,10 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
     font-size:12px;
   }
 
-  .admin-users-card, .admin-closed-queues-card { padding:16px 14px; border-radius:18px; }
+  .admin-users-card, .admin-closed-queues-card, .admin-reset-card { padding:16px 14px; border-radius:18px; }
+  .admin-reset-form { flex-direction:column; align-items:stretch; gap:12px; }
+  .admin-reset-select-group { width:100%; min-width:0; }
+  .admin-reset-submit-button { width:100%; min-height:40px; }
   .admin-users-intro { flex-direction:column; align-items:flex-start; gap:8px; }
   .admin-users-intro strong { font-size:16px; }
   .closed-queue-row { padding:10px 12px; gap:10px; flex-wrap:wrap; }
@@ -768,6 +782,7 @@ html.dark .login-card,
 html.dark .queue-preview,
 html.dark .admin-users-card,
 html.dark .admin-closed-queues-card,
+html.dark .admin-reset-card,
 html.dark .onboarding-card {
   background: #111c33 !important;
   border-color: #1e293b !important;
@@ -941,6 +956,26 @@ html.dark .reopen-button:hover:not(:disabled) {
   background: #16a34a !important;
   border-color: #16a34a !important;
   color: #ffffff !important;
+}
+html.dark .admin-reset-select {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+html.dark .admin-reset-submit-button {
+  background: rgba(234, 88, 12, 0.15) !important;
+  border-color: rgba(251, 146, 60, 0.35) !important;
+  color: #fb923c !important;
+}
+html.dark .admin-reset-submit-button:hover:not(:disabled) {
+  background: #ea580c !important;
+  border-color: #ea580c !important;
+  color: #ffffff !important;
+}
+html.dark .admin-reset-success-alert {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+  color: #86efac !important;
 }
 
 html.dark .subject-code {

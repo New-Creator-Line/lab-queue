@@ -528,6 +528,9 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [resetSubjectKey, setResetSubjectKey] = useState<string>("all");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
   const todayKey = useMemo(() => getTodayDateKey(), []);
 
@@ -681,6 +684,44 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
       setError(reopenError instanceof Error ? reopenError.message : "Не удалось восстановить очередь");
     } finally {
       setPendingKey(null);
+    }
+  }
+
+  async function handleResetRotation() {
+    const selectedSubject = data?.subjects.find((s) => s.key === resetSubjectKey);
+    const targetLabel =
+      resetSubjectKey === "all"
+        ? "всех предметов"
+        : `предмета «${selectedSubject?.abbrev ?? selectedSubject?.name ?? resetSubjectKey}»`;
+    const confirmed = window.confirm(
+      `Вы уверены, что хотите сбросить порядок очередей для ${targetLabel}?\n\nОчередь вернётся к состоянию первого занятия в году (строго по списку группы без переноса хвостов с прошлых пар).`,
+    );
+    if (!confirmed) return;
+
+    setResetLoading(true);
+    setError("");
+    setResetSuccessMessage(null);
+    try {
+      const response = await fetch("/api/admin/reset-rotation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subjectKey: resetSubjectKey }),
+      });
+      const result = (await response.json()) as { ok?: boolean; error?: string };
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error ?? "Не удалось сбросить порядок очередей");
+      }
+      setResetSuccessMessage(
+        resetSubjectKey === "all"
+          ? "Порядок очередей для всех предметов сброшен к первой лабораторной!"
+          : `Порядок очередей для «${selectedSubject?.abbrev ?? "предмета"}» сброшен к первой лабораторной!`,
+      );
+      setTimeout(() => setResetSuccessMessage(null), 5000);
+      await refreshAll(true);
+    } catch (resetErr) {
+      setError(resetErr instanceof Error ? resetErr.message : "Не удалось сбросить порядок очередей");
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -1439,6 +1480,56 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
 
           {data && view === "admins" && (initialUser.isAdmin || initialUser.isSuperAdmin) && (
             <div className="admin-views-stack">
+              <section className="admin-reset-card">
+                <div className="admin-users-intro">
+                  <div>
+                    <div className="admin-card-header-with-icon">
+                      <RotateCcw size={18} className="admin-card-icon" />
+                      <strong>Сброс порядка очередей (первая лаба)</strong>
+                    </div>
+                    <p>
+                      Сбрасывает ротацию и перенесённые хвосты очереди. Порядок участников в очереди вернётся к исходному (строго по списку группы, как на первой лабораторной в году).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="admin-reset-form">
+                  <div className="admin-reset-select-group">
+                    <label htmlFor="reset-subject-select">Предмет:</label>
+                    <select
+                      id="reset-subject-select"
+                      className="admin-reset-select"
+                      value={resetSubjectKey}
+                      onChange={(e) => setResetSubjectKey(e.target.value)}
+                      disabled={resetLoading}
+                    >
+                      <option value="all">Все предметы</option>
+                      {data.subjects.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          {s.abbrev} — {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    className="admin-reset-submit-button"
+                    onClick={() => void handleResetRotation()}
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? <LoaderCircle className="spin" size={16} /> : <RotateCcw size={15} />}
+                    Сбросить порядок очереди
+                  </button>
+                </div>
+
+                {resetSuccessMessage && (
+                  <div className="admin-reset-success-alert">
+                    <CheckCircle2 size={16} />
+                    <span>{resetSuccessMessage}</span>
+                  </div>
+                )}
+              </section>
+
               <section className="admin-closed-queues-card">
                 <div className="admin-users-intro">
                   <div>

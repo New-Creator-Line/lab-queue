@@ -131,8 +131,20 @@ export async function computeQueueSequence(
 
   const results = new Map<number, ProcessedQueueDetails>();
 
+  const globalReset = rotationsBySubject.get("__all__\u0000-1");
+  const globalResetTime = globalReset?.rotation.updatedAt
+    ? Date.parse(globalReset.rotation.updatedAt)
+    : 0;
+
   // Process each subject + subgroup in chronological order
   for (const [key, subjectQueues] of queuesBySubjectSubgroup.entries()) {
+    const [subjectKey] = key.split("\u0000");
+    const subjectReset = rotationsBySubject.get(`${subjectKey}\u0000-1`);
+    const subjectResetTime = subjectReset?.rotation.updatedAt
+      ? Date.parse(subjectReset.rotation.updatedAt)
+      : 0;
+    const resetTime = Math.max(globalResetTime, subjectResetTime);
+
     const rotation = rotationsBySubject.get(key);
     let currentLastOrder = rotation?.lastServedUsername
       ? (getRosterMemberByUsername(rotation.lastServedUsername)?.listNumber ?? 0)
@@ -140,8 +152,19 @@ export async function computeQueueSequence(
 
     // Map: telegramId -> order index in the previous unserved queue
     let currentUnservedMap = new Map<string, number>();
+    let hasAppliedReset = false;
 
     for (const queue of subjectQueues) {
+      const queueTime = getQueueSortTimestamp(queue);
+      if (
+        resetTime > 0 &&
+        !hasAppliedReset &&
+        (queue.status === "open" || queueTime >= resetTime)
+      ) {
+        hasAppliedReset = true;
+        currentLastOrder = 0;
+        currentUnservedMap.clear();
+      }
       const rows = (entriesByQueue.get(queue.id) ?? []).filter(
         (r) => r.entry.cycle === queue.currentCycle,
       );
