@@ -287,6 +287,33 @@ export async function computeQueueSequence(
   return results;
 }
 
+function getCurrentWeekRange() {
+  const minskCalendar = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const monday = new Date(
+    Date.UTC(
+      minskCalendar.getUTCFullYear(),
+      minskCalendar.getUTCMonth(),
+      minskCalendar.getUTCDate(),
+    ),
+  );
+  const daysSinceMonday = (monday.getUTCDay() + 6) % 7;
+  monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(sunday.getUTCDate() + 6);
+
+  const formatIsoDate = (d: Date) =>
+    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+
+  return { mondayDate: formatIsoDate(monday), sundayDate: formatIsoDate(sunday) };
+}
+
+function getQueueMinskDateString(q: { lessonEndsAt: string | null; createdAt: string }): string {
+  const ts = getQueueSortTimestamp(q);
+  if (!ts) return "";
+  const minskDate = new Date(ts + 3 * 60 * 60 * 1000);
+  return `${minskDate.getUTCFullYear()}-${String(minskDate.getUTCMonth() + 1).padStart(2, "0")}-${String(minskDate.getUTCDate()).padStart(2, "0")}`;
+}
+
 export async function getOpenQueues(subgroup: number, includeAll = false) {
   const db = getDb();
   const queueRows = await db
@@ -301,9 +328,14 @@ export async function getOpenQueues(subgroup: number, includeAll = false) {
           ),
     );
 
-  const visibleQueues = queueRows.filter(
-    (item) => !isExcludedSubject(item.subjectAbbrev, item.subjectName),
-  );
+  const { mondayDate, sundayDate } = getCurrentWeekRange();
+
+  const visibleQueues = queueRows.filter((item) => {
+    if (isExcludedSubject(item.subjectAbbrev, item.subjectName)) return false;
+    const dateStr = getQueueMinskDateString(item);
+    if (!dateStr) return true;
+    return dateStr >= mondayDate && dateStr <= sundayDate;
+  });
   if (visibleQueues.length === 0) return [];
 
   const subjectKeys = [...new Set(visibleQueues.map((q) => q.subjectKey))];

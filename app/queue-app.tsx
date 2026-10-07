@@ -228,6 +228,26 @@ function getTodayDateKey(): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+function getCurrentWeekDateRange(): { mondayDate: string; sundayDate: string } {
+  const minskCalendar = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const monday = new Date(
+    Date.UTC(
+      minskCalendar.getUTCFullYear(),
+      minskCalendar.getUTCMonth(),
+      minskCalendar.getUTCDate(),
+    ),
+  );
+  const daysSinceMonday = (monday.getUTCDay() + 6) % 7;
+  monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(sunday.getUTCDate() + 6);
+
+  const formatIsoDate = (d: Date) =>
+    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+
+  return { mondayDate: formatIsoDate(monday), sundayDate: formatIsoDate(sunday) };
+}
+
 function formatQueueDay(value: string | null) {
   if (!value) return "Без даты";
   const date = parseIsoOrSqlDate(value);
@@ -849,13 +869,27 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     }
   }
 
+  const currentWeekRange = useMemo(() => getCurrentWeekDateRange(), []);
+
   const myQueues = useMemo(
-    () => data?.queues.filter((queue) => queue.waiting.some((entry) => entry.telegramId === initialUser.telegramId)) ?? [],
-    [data, initialUser.telegramId],
+    () =>
+      data?.queues
+        .filter((queue) => {
+          const key = queueDateKey(queue.lessonEndsAt);
+          if (!key) return true;
+          return key >= currentWeekRange.mondayDate && key <= currentWeekRange.sundayDate;
+        })
+        .filter((queue) => queue.waiting.some((entry) => entry.telegramId === initialUser.telegramId)) ?? [],
+    [currentWeekRange, data, initialUser.telegramId],
   );
 
   const queueDays = useMemo(() => {
     const visibleQueues = (data?.queues ?? [])
+      .filter((queue) => {
+        const key = queueDateKey(queue.lessonEndsAt);
+        if (!key) return true;
+        return key >= currentWeekRange.mondayDate && key <= currentWeekRange.sundayDate;
+      })
       .filter((queue) => initialUser.isAdmin || myQueues.some((item) => item.id === queue.id))
       .sort((left, right) => {
         const leftTime = left.lessonEndsAt ? Date.parse(left.lessonEndsAt) : Number.MAX_SAFE_INTEGER;
@@ -872,7 +906,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     }
 
     return [...days.entries()].map(([key, day]) => ({ key, ...day }));
-  }, [data, initialUser.isAdmin, myQueues]);
+  }, [currentWeekRange, data, initialUser.isAdmin, myQueues]);
 
   const scheduleWeeks = useMemo(() => {
     type ScheduleItem = { subject: Subject; lesson: Subject["lessons"][number] };
