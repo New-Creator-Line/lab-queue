@@ -272,7 +272,7 @@ export async function createOrUpdateBrigade(params: {
   // Check if current user is already leading or part of a brigade for this subject
   const existingUserBrigade = await getUserBrigade(subjectKey, leaderTelegramId);
 
-  return await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     let brigadeId: number;
 
     if (existingUserBrigade) {
@@ -374,13 +374,13 @@ export async function createOrUpdateBrigade(params: {
         })
         .onConflictDoNothing();
     }
-
-    const updated = await getUserBrigade(subjectKey, leaderTelegramId);
-    if (!updated) {
-      throw new Error("Не удалось создать бригаду");
-    }
-    return updated;
   });
+
+  const updated = await getUserBrigade(subjectKey, leaderTelegramId);
+  if (!updated) {
+    throw new Error("Не удалось создать бригаду");
+  }
+  return updated;
 }
 
 export async function disbandBrigade(
