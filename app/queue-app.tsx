@@ -809,12 +809,14 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void refreshAll(), 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [refreshAll]);
+
+  useEffect(() => {
+    if (brigadeModalSubject !== null) return;
     const timer = window.setInterval(() => void refreshQueues(true), 15_000);
-    return () => {
-      window.clearTimeout(initialLoad);
-      window.clearInterval(timer);
-    };
-  }, [refreshAll, refreshQueues]);
+    return () => window.clearInterval(timer);
+  }, [refreshQueues, brigadeModalSubject]);
 
   function removeEntryOptimistically(queueId: number, entryId: number) {
     setData((current) => current ? {
@@ -860,7 +862,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     } : current);
   }
 
-  function handleManualRefresh() {
+  const handleManualRefresh = useCallback(() => {
     setRefreshAnimation((value) => value + 1);
     if (view === "queues") {
       void refreshQueues();
@@ -873,7 +875,15 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     } else {
       void refreshAll();
     }
-  }
+  }, [view, refreshQueues, loadHistory, selectedHistoryDate, initialUser.isSuperAdmin, loadAdminUsers, loadClosedQueues, refreshAll]);
+
+  const handleCloseBrigadeModal = useCallback(() => {
+    setBrigadeModalSubject(null);
+  }, []);
+
+  const handleBrigadeUpdated = useCallback(() => {
+    handleManualRefresh();
+  }, [handleManualRefresh]);
 
   async function act(
     path: string,
@@ -1944,12 +1954,10 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
 
       <BrigadeModal
         isOpen={brigadeModalSubject !== null}
-        onClose={() => setBrigadeModalSubject(null)}
+        onClose={handleCloseBrigadeModal}
         subject={brigadeModalSubject}
         currentUser={initialUser}
-        onBrigadeUpdated={() => {
-          handleManualRefresh();
-        }}
+        onBrigadeUpdated={handleBrigadeUpdated}
       />
     </main>
   );

@@ -69,12 +69,16 @@ export function BrigadeModal({
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [transferLeaderId, setTransferLeaderId] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    if (!subject) return;
+  const subjectKey = subject?.key;
+  const currentUserId = currentUser.telegramId;
+
+  const loadData = useCallback(async (targetKey?: string) => {
+    const key = targetKey ?? subjectKey;
+    if (!key) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/brigades?subjectKey=${encodeURIComponent(subject.key)}`);
+      const res = await fetch(`/api/brigades?subjectKey=${encodeURIComponent(key)}`);
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         myBrigade?: BrigadeDetail | null;
@@ -92,7 +96,7 @@ export function BrigadeModal({
         setBrigadeName(data.myBrigade.name);
         setSelectedMemberIds(
           data.myBrigade.members
-            .filter((m: BrigadeMember) => m.telegramId !== currentUser.telegramId)
+            .filter((m: BrigadeMember) => m.telegramId !== currentUserId)
             .map((m: BrigadeMember) => m.telegramId),
         );
       } else {
@@ -104,7 +108,7 @@ export function BrigadeModal({
     } finally {
       setLoading(false);
     }
-  }, [subject, currentUser.telegramId]);
+  }, [subjectKey, currentUserId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -115,18 +119,24 @@ export function BrigadeModal({
       }
     }
     window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !subjectKey) return;
 
     const timer = window.setTimeout(() => {
       setIsEditing(false);
       setTransferLeaderId(null);
-      void loadData();
+      void loadData(subjectKey);
     }, 0);
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
       window.clearTimeout(timer);
     };
-  }, [isOpen, loadData, onClose]);
+  }, [isOpen, subjectKey, loadData]);
 
   if (!isOpen || !subject) return null;
 
