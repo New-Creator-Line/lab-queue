@@ -106,6 +106,9 @@ export const queueEntries = pgTable(
     telegramId: text("telegram_id")
       .notNull()
       .references(() => users.telegramId, { onDelete: "cascade" }),
+    brigadeId: integer("brigade_id").references(() => brigades.id, {
+      onDelete: "set null",
+    }),
     status: text("status").notNull().default("waiting"),
     joinedAt: createdAt("joined_at"),
     completedAt: timestamp("completed_at", {
@@ -120,6 +123,58 @@ export const queueEntries = pgTable(
       table.telegramId,
     ),
     index("queue_entries_current_idx").on(table.queueId, table.cycle),
+    index("queue_entries_brigade_idx").on(table.brigadeId),
+  ],
+);
+
+export const subjectSettings = pgTable(
+  "subject_settings",
+  {
+    subjectKey: text("subject_key").primaryKey(),
+    hasBrigades: boolean("has_brigades").notNull().default(false),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+);
+
+export const brigades = pgTable(
+  "brigades",
+  {
+    id: serial("id").primaryKey(),
+    subjectKey: text("subject_key").notNull(),
+    subgroup: integer("subgroup").notNull(),
+    name: text("name").notNull(),
+    leaderTelegramId: text("leader_telegram_id")
+      .notNull()
+      .references(() => users.telegramId, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("brigades_subject_subgroup_idx").on(table.subjectKey, table.subgroup),
+    index("brigades_leader_idx").on(table.leaderTelegramId),
+  ],
+);
+
+export const brigadeMembers = pgTable(
+  "brigade_members",
+  {
+    id: serial("id").primaryKey(),
+    brigadeId: integer("brigade_id")
+      .notNull()
+      .references(() => brigades.id, { onDelete: "cascade" }),
+    subjectKey: text("subject_key").notNull(),
+    telegramId: text("telegram_id")
+      .notNull()
+      .references(() => users.telegramId, { onDelete: "cascade" }),
+    joinedAt: createdAt("joined_at"),
+  },
+  (table) => [
+    uniqueIndex("brigade_members_subject_user_unique").on(
+      table.subjectKey,
+      table.telegramId,
+    ),
+    index("brigade_members_brigade_idx").on(table.brigadeId),
   ],
 );
 

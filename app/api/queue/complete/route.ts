@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { queueEntries, queues, rotations } from "@/db/schema";
+import { brigades, queueEntries, queues, rotations } from "@/db/schema";
 import { isQueueLocked } from "@/lib/queue-lock";
 import { requireCurrentUser } from "@/lib/telegram-auth";
 
@@ -37,28 +37,55 @@ export async function POST(request: Request) {
 
     const completedAt = new Date().toISOString();
     await db.transaction(async (tx) => {
-      await tx
-        .update(queueEntries)
-        .set({ status: "served", completedAt })
-        .where(
-          and(
-            eq(queueEntries.id, row.entry.id),
-            eq(queueEntries.status, "waiting"),
-          ),
-        );
+      let leaderTelegramId = user.telegramId;
+
+      if (row.entry.brigadeId) {
+        const [brigade] = await tx
+          .select()
+          .from(brigades)
+          .where(eq(brigades.id, row.entry.brigadeId))
+          .limit(1);
+
+        if (brigade) {
+          leaderTelegramId = brigade.leaderTelegramId;
+        }
+
+        // Mark all waiting members of this brigade as served
+        await tx
+          .update(queueEntries)
+          .set({ status: "served", completedAt })
+          .where(
+            and(
+              eq(queueEntries.queueId, row.queue.id),
+              eq(queueEntries.cycle, row.queue.currentCycle),
+              eq(queueEntries.brigadeId, row.entry.brigadeId),
+              eq(queueEntries.status, "waiting"),
+            ),
+          );
+      } else {
+        await tx
+          .update(queueEntries)
+          .set({ status: "served", completedAt })
+          .where(
+            and(
+              eq(queueEntries.id, row.entry.id),
+              eq(queueEntries.status, "waiting"),
+            ),
+          );
+      }
 
       await tx
         .insert(rotations)
         .values({
           subjectKey: row.queue.subjectKey,
           subgroup: row.queue.subgroup,
-          lastServedTelegramId: user.telegramId,
+          lastServedTelegramId: leaderTelegramId,
           updatedAt: completedAt,
         })
         .onConflictDoUpdate({
           target: [rotations.subjectKey, rotations.subgroup],
           set: {
-            lastServedTelegramId: user.telegramId,
+            lastServedTelegramId: leaderTelegramId,
             updatedAt: completedAt,
           },
         });

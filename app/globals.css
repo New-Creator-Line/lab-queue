@@ -1178,3 +1178,500 @@ html.dark .badge-skipped {
   color: #94a3b8 !important;
 }
 
+
+/* ==========================================================================
+   BRIGADE / TEAM QUEUE STYLES
+   ========================================================================== */
+
+.brigade-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid #ddd6fe;
+}
+html.dark .brigade-badge {
+  background: #2e1065;
+  color: #c4b5fd;
+  border-color: #4c1d95;
+}
+
+.brigade-manage-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.brigade-manage-btn:hover {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+}
+html.dark .brigade-manage-btn {
+  background: #1e1b4b;
+  color: #c4b5fd;
+  border-color: #3730a3;
+}
+html.dark .brigade-manage-btn:hover {
+  background: #312e81;
+}
+
+.actual-person.is-brigade {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px 14px;
+}
+.brigade-slot-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.brigade-slot-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.brigade-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.brigade-slot-badge {
+  background: #8b5cf6;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.03em;
+}
+.crown-icon {
+  color: #f59e0b;
+  display: inline-block;
+  vertical-align: middle;
+}
+.brigade-members-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  padding-left: 36px;
+}
+.brigade-member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+.brigade-member-chip.is-leader {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.brigade-member-chip.is-me {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+}
+html.dark .actual-person.is-brigade {
+  background: #0f172a;
+}
+html.dark .brigade-member-chip {
+  background: #1e293b;
+  color: #94a3b8;
+}
+html.dark .brigade-member-chip.is-leader {
+  background: #451a03;
+  color: #fde68a;
+  border-color: #78350f;
+}
+html.dark .brigade-member-chip.is-me {
+  background: #1e3a8a;
+  color: #bfdbfe;
+  border-color: #2563eb;
+}
+
+/* Modal Overlay & Card */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+.brigade-modal {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+html.dark .brigade-modal {
+  background: #0b1324;
+  border-color: #1e293b;
+  color: #f8fafc;
+}
+.brigade-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+html.dark .brigade-modal-head {
+  border-bottom-color: #1e293b;
+}
+.brigade-modal-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.brigade-modal-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brigade-modal-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+html.dark .brigade-modal-close:hover {
+  background: #1e293b;
+  color: #f8fafc;
+}
+.brigade-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+.brigade-info-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+html.dark .brigade-info-card {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+.brigade-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.brigade-form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+html.dark .brigade-form-group label {
+  color: #94a3b8;
+}
+.brigade-input {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  font-size: 14px;
+  color: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  width: 100%;
+}
+.brigade-input:focus {
+  border-color: #7c3aed;
+}
+html.dark .brigade-input {
+  background: #0f172a;
+  border-color: #334155;
+}
+.member-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px;
+  background: #f8fafc;
+}
+html.dark .member-select-list {
+  border-color: #1e293b;
+  background: #070d1e;
+}
+.member-select-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+  font-size: 13px;
+}
+.member-select-item:hover {
+  background: #e2e8f0;
+}
+html.dark .member-select-item:hover {
+  background: #1e293b;
+}
+.member-select-item input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: #7c3aed;
+  cursor: pointer;
+}
+.brigade-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+}
+html.dark .brigade-modal-footer {
+  border-top-color: #1e293b;
+}
+.btn-primary-purple {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #7c3aed;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary-purple:hover {
+  background: #6d28d9;
+}
+.btn-primary-purple:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-secondary-btn:hover {
+  background: #e2e8f0;
+}
+html.dark .btn-secondary-btn {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+html.dark .btn-secondary-btn:hover {
+  background: #334155;
+}
+.btn-danger-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-danger-outline:hover {
+  background: #fef2f2;
+}
+html.dark .btn-danger-outline {
+  border-color: #7f1d1d;
+  color: #f87171;
+}
+html.dark .btn-danger-outline:hover {
+  background: #450a0a;
+}
+
+/* Admin Brigade Settings Card */
+.admin-brigade-settings-card {
+  width: 100%;
+  max-width: 860px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 21px;
+  padding: 24px;
+  box-shadow: 0 8px 26px rgba(25, 45, 80, 0.045);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+html.dark .admin-brigade-settings-card {
+  background: #0b1324;
+  border-color: #1e293b;
+}
+.admin-subject-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  gap: 12px;
+}
+html.dark .admin-subject-setting-row {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+.admin-subject-setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.admin-subject-setting-info strong {
+  font-size: 14px;
+}
+.admin-subject-setting-info small {
+  font-size: 12px;
+  color: #64748b;
+}
+html.dark .admin-subject-setting-info small {
+  color: #94a3b8;
+}
+.admin-toggle-brigade-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #334155;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.admin-toggle-brigade-btn.active {
+  background: #ede9fe;
+  color: #6d28d9;
+  border-color: #c4b5fd;
+  font-weight: 700;
+}
+html.dark .admin-toggle-brigade-btn {
+  background: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+html.dark .admin-toggle-brigade-btn.active {
+  background: #2e1065;
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+.brigade-member-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: white;
+  border: 1px solid #e2e8f0;
+}
+.brigade-member-card.is-me {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+html.dark .brigade-member-card {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+html.dark .brigade-member-card.is-me {
+  background: #172554;
+  border-color: #1e40af;
+}
+
+.other-brigade-card {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+}
+.other-brigade-card.is-my-team {
+  background: #ede9fe;
+  border-color: #ddd6fe;
+}
+html.dark .other-brigade-card {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+html.dark .other-brigade-card.is-my-team {
+  background: #2e1065;
+  border-color: #4c1d95;
+}

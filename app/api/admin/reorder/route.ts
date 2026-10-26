@@ -38,9 +38,12 @@ export async function POST(request: Request) {
     const visibleQueue = (await getOpenQueues(row.queue.subgroup)).find(
       (queue) => queue.id === row.queue.id,
     );
-    const position = visibleQueue?.waiting.findIndex(
-      (entry) => entry.id === row.entry.id,
-    ) ?? -1;
+    const position =
+      visibleQueue?.waiting.findIndex(
+        (entry) =>
+          entry.id === row.entry.id ||
+          entry.members?.some((m) => m.id === row.entry.id),
+      ) ?? -1;
     if (position === -1) {
       return Response.json({ error: "Участник уже не находится в очереди" }, { status: 409 });
     }
@@ -51,11 +54,15 @@ export async function POST(request: Request) {
       return Response.json({ error: "Дальше переместить нельзя" }, { status: 409 });
     }
 
+    const currentSlot = visibleQueue.waiting[position];
+    const movingId = currentSlot.leaderTelegramId || currentSlot.telegramId;
+    const neighborId = neighbor.leaderTelegramId || neighbor.telegramId;
+
     await db.insert(queuePasses).values({
       queueId: row.queue.id,
       cycle: row.queue.currentCycle,
-      passerTelegramId: movingDown ? row.entry.telegramId : neighbor.telegramId,
-      promotedTelegramId: movingDown ? neighbor.telegramId : row.entry.telegramId,
+      passerTelegramId: movingDown ? movingId : neighborId,
+      promotedTelegramId: movingDown ? neighborId : movingId,
     });
 
     return Response.json({ ok: true });

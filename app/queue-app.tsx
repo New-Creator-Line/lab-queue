@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Crown,
   DoorOpen,
   ExternalLink,
   GraduationCap,
@@ -26,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { BrigadeModal } from "@/components/brigade-modal";
 
 type User = {
   telegramId: string;
@@ -56,6 +58,28 @@ type Subject = {
   }>;
 };
 
+type QueueWaitingMember = {
+  id: number;
+  telegramId: string;
+  displayName: string;
+  username: string | null;
+  subgroup: number | null;
+  isLeader: boolean;
+};
+
+type QueueWaitingEntry = {
+  id: number;
+  telegramId: string;
+  displayName: string;
+  username: string | null;
+  position: number;
+  brigadeId?: number | null;
+  brigadeName?: string | null;
+  leaderTelegramId?: string | null;
+  leaderDisplayName?: string | null;
+  members?: QueueWaitingMember[];
+};
+
 type Queue = {
   id: number;
   subjectKey: string;
@@ -65,13 +89,7 @@ type Queue = {
   currentCycle: number;
   lessonEndsAt: string | null;
   isLocked: boolean;
-  waiting: Array<{
-    id: number;
-    telegramId: string;
-    displayName: string;
-    username: string | null;
-    position: number;
-  }>;
+  waiting: QueueWaitingEntry[];
   completed: string[];
 };
 
@@ -79,6 +97,7 @@ type DashboardData = {
   user: User;
   subjects: Subject[];
   queues: Queue[];
+  subjectSettings?: Record<string, boolean>;
   scheduleAvailable: boolean;
 };
 
@@ -552,6 +571,30 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
+  const [brigadeModalSubject, setBrigadeModalSubject] = useState<Subject | null>(null);
+  const [adminSubjectSettingsOverrides, setAdminSubjectSettingsOverrides] = useState<Record<string, boolean>>({});
+  const [togglingBrigadeKey, setTogglingBrigadeKey] = useState<string | null>(null);
+
+  async function handleToggleBrigadeSetting(subjectKey: string, currentValue: boolean) {
+    setTogglingBrigadeKey(subjectKey);
+    const nextVal = !currentValue;
+    setAdminSubjectSettingsOverrides((prev) => ({ ...prev, [subjectKey]: nextVal }));
+    try {
+      const res = await fetch("/api/admin/subject-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subjectKey, hasBrigades: nextVal }),
+      });
+      if (!res.ok) {
+        setAdminSubjectSettingsOverrides((prev) => ({ ...prev, [subjectKey]: currentValue }));
+      }
+    } catch {
+      setAdminSubjectSettingsOverrides((prev) => ({ ...prev, [subjectKey]: currentValue }));
+    } finally {
+      setTogglingBrigadeKey(null);
+    }
+  }
+
   const todayKey = useMemo(() => getTodayDateKey(), []);
 
   const isDayCollapsed = useCallback(
@@ -879,7 +922,13 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
           if (!key) return true;
           return key >= currentWeekRange.mondayDate && key <= currentWeekRange.sundayDate;
         })
-        .filter((queue) => queue.waiting.some((entry) => entry.telegramId === initialUser.telegramId)) ?? [],
+        .filter((queue) =>
+          queue.waiting.some(
+            (entry) =>
+              entry.telegramId === initialUser.telegramId ||
+              entry.members?.some((m) => m.telegramId === initialUser.telegramId),
+          ),
+        ) ?? [],
     [currentWeekRange, data, initialUser.telegramId],
   );
 
@@ -1126,21 +1175,65 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                     Date.parse(item.lessonEndsAt) === lessonEnd,
                                 );
                                 const queue = existingQueue?.isLocked && !lesson.isPast ? undefined : existingQueue;
-                                const myEntry = queue?.waiting.find((entry) => entry.telegramId === initialUser.telegramId);
+                                const myEntry = queue?.waiting.find(
+                                  (entry) =>
+                                    entry.telegramId === initialUser.telegramId ||
+                                    entry.members?.some((m) => m.telegramId === initialUser.telegramId),
+                                );
+                                const hasBrigades = Boolean(
+                                  adminSubjectSettingsOverrides[subject.key] ?? data.subjectSettings?.[subject.key],
+                                );
                                 const key = `${subject.key}-${date}-${lesson.time}-${lesson.type}`;
                                 return (
                                   <article className={lesson.isPast ? "subject-card is-past" : "subject-card"} key={key} style={{ "--delay": `${index * 35}ms` } as React.CSSProperties}>
-                                    <div className="subject-top"><span className="subject-code">{subject.abbrev}</span><div className="type-tags"><span>{lesson.type}</span><span className="subgroup-tag">{lesson.subgroup === 0 ? "Вся группа" : `${lesson.subgroup}-я подгруппа`}</span></div></div>
+                                    <div className="subject-top">
+                                      <span className="subject-code">{subject.abbrev}</span>
+                                      <div className="type-tags">
+                                        <span>{lesson.type}</span>
+                                        <span className="subgroup-tag">{lesson.subgroup === 0 ? "Вся группа" : `${lesson.subgroup}-я подгруппа`}</span>
+                                        {hasBrigades && <span className="brigade-badge"><Users size={12} /> Бригады</span>}
+                                      </div>
+                                    </div>
                                     <h2>{subject.name}</h2>
-                                    <div className="lesson-line"><Clock3 size={15} /><span>{lesson.time}</span><span className="dot">·</span><DoorOpen size={15} /><span>{lesson.room}</span></div>
+                                    <div className="lesson-line">
+                                      <Clock3 size={15} /><span>{lesson.time}</span><span className="dot">·</span><DoorOpen size={15} /><span>{lesson.room}</span>
+                                    </div>
+                                    {hasBrigades && (
+                                      <div style={{ marginTop: 8 }}>
+                                        <button
+                                          type="button"
+                                          className="brigade-manage-btn"
+                                          onClick={() => setBrigadeModalSubject(subject)}
+                                        >
+                                          <Users size={14} /> Моя бригада
+                                        </button>
+                                      </div>
+                                    )}
                                     <div className="card-bottom">
                                       {queue ? <span className="queue-count"><Users size={16} /> {queue.waiting.length} в очереди</span> : <span className="queue-empty">Очередь пока пуста</span>}
                                       {lesson.isPast ? (
                                         <button className="past-button" disabled>Занятие прошло</button>
                                       ) : myEntry ? (
-                                        <button className="joined-button" onClick={() => setView("queues")}><CheckCircle2 size={18} /> Вы №{myEntry.position}<ChevronRight size={17} /></button>
+                                        <button className="joined-button" onClick={() => setView("queues")}>
+                                          <CheckCircle2 size={18} /> {myEntry.brigadeId ? "Бригада №" : "Вы №"}{myEntry.position}<ChevronRight size={17} />
+                                        </button>
                                       ) : (
-                                        <button className="join-button" disabled={pendingKey === subject.key} onClick={() => act("/api/queue/join", { subjectKey: subject.key, lessonDate: lesson.date, lessonTime: lesson.time, lessonType: lesson.type }, subject.key)}>
+                                        <button
+                                          className="join-button"
+                                          disabled={pendingKey === subject.key}
+                                          onClick={() =>
+                                            act(
+                                              "/api/queue/join",
+                                              {
+                                                subjectKey: subject.key,
+                                                lessonDate: lesson.date,
+                                                lessonTime: lesson.time,
+                                                lessonType: lesson.type,
+                                              },
+                                              subject.key,
+                                            )
+                                          }
+                                        >
                                           {pendingKey === subject.key ? <LoaderCircle className="spin" size={18} /> : <>Хочу сдавать <ArrowRight size={17} /></>}
                                         </button>
                                       )}
@@ -1195,7 +1288,11 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                       {!collapsed && (
                         <div className="queue-stack">
                       {day.queues.map((queue) => {
-                        const myEntry = queue.waiting.find((entry) => entry.telegramId === initialUser.telegramId);
+                        const myEntry = queue.waiting.find(
+                          (entry) =>
+                            entry.telegramId === initialUser.telegramId ||
+                            entry.members?.some((m) => m.telegramId === initialUser.telegramId),
+                        );
                         return (
                           <article className={queue.isLocked ? "queue-card is-locked" : "queue-card"} key={queue.id}>
                             <div className="queue-card-head">
@@ -1206,25 +1303,90 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                               </div>
                               {queue.isLocked ? <span className="locked-badge">занятие завершено</span> : <span className="live-badge"><i /> запись открыта</span>}
                             </div>
-                            {myEntry && <div className="position-banner"><span>Твоё место</span><strong>№ {myEntry.position}</strong><small>{myEntry.position === 1 ? "Ты следующий" : `Перед тобой ${myEntry.position - 1}`}</small></div>}
+                            {myEntry && (
+                              <div className="position-banner">
+                                <span>Твоё место</span>
+                                <strong>№ {myEntry.position}</strong>
+                                <small>
+                                  {myEntry.brigadeName
+                                    ? `Бригада «${myEntry.brigadeName}» (Лидер: ${myEntry.leaderDisplayName})`
+                                    : myEntry.position === 1
+                                      ? "Ты следующий"
+                                      : `Перед тобой ${myEntry.position - 1}`}
+                                </small>
+                              </div>
+                            )}
                             <div className="actual-list">
                               {queue.waiting.length === 0 && <p className="empty-list">В очереди никого нет</p>}
-                              {queue.waiting.map((entry) => (
-                                <div className={entry.telegramId === initialUser.telegramId ? "actual-person is-me" : "actual-person"} key={entry.id}>
-                                  <span className="actual-number">{entry.position}</span>
-                                  <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
-                                  <div><strong>{entry.displayName}</strong>{entry.telegramId === initialUser.telegramId && <small>это ты</small>}</div>
-                                  {entry.position === 1 && <span className="next-label">следующий</span>}
-                                  {initialUser.isAdmin && !queue.isLocked && (
-                                    <div className="admin-entry-actions">
-                                      <button title="Поднять на одну позицию" disabled={entry.position === 1 || pendingKey === `up-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "up" }, `up-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "up"))}><ArrowUp size={15} /></button>
-                                      <button title="Опустить на одну позицию" disabled={entry.position === queue.waiting.length || pendingKey === `down-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "down" }, `down-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "down"))}><ArrowDown size={15} /></button>
-                                      <button title="Сдавал" disabled={pendingKey === `served-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "served" }, `served-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><Check size={16} /></button>
-                                      <button title="Удалить из очереди" disabled={pendingKey === `skip-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "skipped" }, `skip-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><X size={15} /></button>
+                              {queue.waiting.map((entry) => {
+                                const isMe =
+                                  entry.telegramId === initialUser.telegramId ||
+                                  entry.members?.some((m) => m.telegramId === initialUser.telegramId);
+                                const isBrigade = !!entry.brigadeId && !!entry.members && entry.members.length > 0;
+
+                                if (isBrigade) {
+                                  return (
+                                    <div className={isMe ? "actual-person is-brigade is-me" : "actual-person is-brigade"} key={entry.id}>
+                                      <div className="brigade-slot-top">
+                                        <span className="actual-number">{entry.position}</span>
+                                        <div className="brigade-slot-details">
+                                          <div className="brigade-title-row">
+                                            <span className="brigade-slot-badge">Бригада</span>
+                                            <strong>{entry.brigadeName || entry.displayName}</strong>
+                                            {isMe && <small style={{ color: "#2563eb", fontWeight: 700, fontSize: 10, textTransform: "uppercase" }}>твоя бригада</small>}
+                                          </div>
+                                          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#64748b" }}>
+                                            <Crown size={13} className="crown-icon" />
+                                            <span>Лидер: <strong>{entry.leaderDisplayName || entry.displayName}</strong></span>
+                                          </div>
+                                        </div>
+                                        {entry.position === 1 && <span className="next-label">следующие</span>}
+                                        {initialUser.isAdmin && !queue.isLocked && (
+                                          <div className="admin-entry-actions">
+                                            <button title="Поднять на одну позицию" disabled={entry.position === 1 || pendingKey === `up-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "up" }, `up-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "up"))}><ArrowUp size={15} /></button>
+                                            <button title="Опустить на одну позицию" disabled={entry.position === queue.waiting.length || pendingKey === `down-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "down" }, `down-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "down"))}><ArrowDown size={15} /></button>
+                                            <button title="Сдавали" disabled={pendingKey === `served-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "served" }, `served-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><Check size={16} /></button>
+                                            <button title="Удалить из очереди" disabled={pendingKey === `skip-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "skipped" }, `skip-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><X size={15} /></button>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="brigade-members-chips">
+                                        {entry.members?.map((m) => (
+                                          <span
+                                            key={m.telegramId}
+                                            className={
+                                              m.telegramId === initialUser.telegramId
+                                                ? "brigade-member-chip is-me"
+                                                : m.isLeader
+                                                  ? "brigade-member-chip is-leader"
+                                                  : "brigade-member-chip"
+                                            }
+                                          >
+                                            {m.isLeader && "👑 "}{m.displayName}
+                                          </span>
+                                        ))}
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
-                              ))}
+                                  );
+                                }
+
+                                return (
+                                  <div className={isMe ? "actual-person is-me" : "actual-person"} key={entry.id}>
+                                    <span className="actual-number">{entry.position}</span>
+                                    <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
+                                    <div><strong>{entry.displayName}</strong>{isMe && <small>это ты</small>}</div>
+                                    {entry.position === 1 && <span className="next-label">следующий</span>}
+                                    {initialUser.isAdmin && !queue.isLocked && (
+                                      <div className="admin-entry-actions">
+                                        <button title="Поднять на одну позицию" disabled={entry.position === 1 || pendingKey === `up-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "up" }, `up-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "up"))}><ArrowUp size={15} /></button>
+                                        <button title="Опустить на одну позицию" disabled={entry.position === queue.waiting.length || pendingKey === `down-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "down" }, `down-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "down"))}><ArrowDown size={15} /></button>
+                                        <button title="Сдавал" disabled={pendingKey === `served-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "served" }, `served-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><Check size={16} /></button>
+                                        <button title="Удалить из очереди" disabled={pendingKey === `skip-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "skipped" }, `skip-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><X size={15} /></button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                             <div className="queue-actions">
                               {queue.isLocked && <span className="queue-locked-note">Изменения недоступны после окончания занятия</span>}
@@ -1564,6 +1726,77 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                 )}
               </section>
 
+              <section className="admin-brigade-settings-card">
+                <div className="admin-users-intro">
+                  <div>
+                    <div className="admin-card-header-with-icon">
+                      <Users size={18} className="admin-card-icon" />
+                      <strong>Настройки бригадной сдачи (ПЗ / ЛР)</strong>
+                    </div>
+                    <p>
+                      Включите режим бригад для предметов, где лабораторные или практические занятия сдаются бригадами. Участники смогут создавать бригады, а очередь будет строиться по ротации лидера.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {data?.subjects?.map((subject) => {
+                    const hasBrigades = Boolean(
+                      adminSubjectSettingsOverrides[subject.key] ?? data.subjectSettings?.[subject.key],
+                    );
+                    const isPending = togglingBrigadeKey === subject.key;
+                    return (
+                      <div className="admin-subject-setting-row" key={subject.key}>
+                        <div className="admin-subject-setting-info">
+                          <div>
+                            <span className="subject-code">{subject.abbrev}</span>{" "}
+                            <strong>{subject.name}</strong>
+                          </div>
+                          <small>Типы: {subject.lessonTypes.join(", ")}</small>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <button
+                            type="button"
+                            className={
+                              hasBrigades
+                                ? "admin-toggle-brigade-btn active"
+                                : "admin-toggle-brigade-btn"
+                            }
+                            disabled={isPending}
+                            onClick={() =>
+                              void handleToggleBrigadeSetting(subject.key, hasBrigades)
+                            }
+                          >
+                            {isPending ? (
+                              <LoaderCircle className="spin" size={15} />
+                            ) : hasBrigades ? (
+                              <>
+                                <Users size={15} /> Бригадная сдача ВКЛ
+                              </>
+                            ) : (
+                              <>Индивидуально</>
+                            )}
+                          </button>
+                          {hasBrigades && (
+                            <button
+                              type="button"
+                              className="btn-secondary-btn"
+                              style={{ padding: "7px 12px", fontSize: 12 }}
+                              onClick={() => setBrigadeModalSubject(subject)}
+                            >
+                              Бригады
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(!data?.subjects || data.subjects.length === 0) && (
+                    <p className="admin-empty-note">Нет доступных предметов для настройки</p>
+                  )}
+                </div>
+              </section>
+
               <section className="admin-closed-queues-card">
                 <div className="admin-users-intro">
                   <div>
@@ -1667,6 +1900,16 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
           )}
         </section>
       </div>
+
+      <BrigadeModal
+        isOpen={brigadeModalSubject !== null}
+        onClose={() => setBrigadeModalSubject(null)}
+        subject={brigadeModalSubject}
+        currentUser={initialUser}
+        onBrigadeUpdated={() => {
+          handleManualRefresh();
+        }}
+      />
     </main>
   );
 }

@@ -40,9 +40,12 @@ export async function POST(request: Request) {
     const currentQueue = (await getOpenQueues(user.subgroup)).find(
       (item) => item.id === queue.id,
     );
-    const currentPosition = currentQueue?.waiting.findIndex(
-      (entry) => entry.telegramId === user.telegramId,
-    ) ?? -1;
+    const currentPosition =
+      currentQueue?.waiting.findIndex(
+        (entry) =>
+          entry.telegramId === user.telegramId ||
+          entry.members?.some((m) => m.telegramId === user.telegramId),
+      ) ?? -1;
     const promoted = currentQueue?.waiting[currentPosition + 1];
     if (currentPosition === -1) {
       return Response.json({ error: "Ты не находишься в этой очереди" }, { status: 409 });
@@ -51,11 +54,15 @@ export async function POST(request: Request) {
       return Response.json({ error: "Ты уже последний в очереди" }, { status: 409 });
     }
 
+    const currentSlot = currentQueue?.waiting[currentPosition];
+    const passerId = currentSlot?.leaderTelegramId || user.telegramId;
+    const promotedId = promoted.leaderTelegramId || promoted.telegramId;
+
     await db.insert(queuePasses).values({
       queueId: queue.id,
       cycle: queue.currentCycle,
-      passerTelegramId: user.telegramId,
-      promotedTelegramId: promoted.telegramId,
+      passerTelegramId: passerId,
+      promotedTelegramId: promotedId,
     });
 
     return Response.json({ ok: true });

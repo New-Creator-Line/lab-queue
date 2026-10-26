@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { queueEntries, queues, rotations } from "@/db/schema";
+import { brigades, queueEntries, queues, rotations } from "@/db/schema";
 import { isQueueLocked } from "@/lib/queue-lock";
 import { requireCurrentUser } from "@/lib/telegram-auth";
 
@@ -26,32 +26,66 @@ export async function POST(request: Request) {
     if (!row || row.entry.cycle !== row.queue.currentCycle) {
       return Response.json({ error: "Запись не найдена" }, { status: 404 });
     }
+    if (row.entry.status !== "waiting") {
+      return Response.json({ error: "Запись уже обработана" }, { status: 409 });
+    }
     if (isQueueLocked(row.queue)) {
       return Response.json({ error: "Занятие уже закончилось — очередь заблокирована" }, { status: 409 });
     }
 
-    await db
-      .update(queueEntries)
-      .set({ status: action, completedAt: new Date().toISOString() })
-      .where(eq(queueEntries.id, row.entry.id));
+    const completedAt = new Date().toISOString();
 
-    if (action === "served") {
-      await db
-        .insert(rotations)
-        .values({
-          subjectKey: row.queue.subjectKey,
-          subgroup: row.queue.subgroup,
-          lastServedTelegramId: row.entry.telegramId,
-          updatedAt: new Date().toISOString(),
-        })
-        .onConflictDoUpdate({
-          target: [rotations.subjectKey, rotations.subgroup],
-          set: {
-            lastServedTelegramId: row.entry.telegramId,
-            updatedAt: new Date().toISOString(),
-          },
-        });
-    }
+    await db.transaction(async (tx) => {
+      let leaderTelegramId = row.entry.telegramId;
+
+      if (row.entry.brigadeId) {
+        const [brigade] = await tx
+          .select()
+          .from(brigades)
+          .where(eq(brigades.id, row.entry.brigadeId))
+          .limit(1);
+
+        if (brigade) {
+          leaderTelegramId = brigade.leaderTelegramId;
+        }
+
+        await tx
+          .update(queueEntries)
+          .set({ status: action, completedAt })
+          .where(
+            and(
+              eq(queueEntries.queueId, row.queue.id),
+              eq(queueEntries.cycle, row.queue.currentCycle),
+              eq(queueEntries.brigadeId, row.entry.brigadeId),
+              eq(queueEntries.status, "waiting"),
+            ),
+          );
+      } else {
+        await tx
+          .update(queueEntries)
+          .set({ status: action, completedAt })
+          .where(eq(queueEntries.id, row.entry.id));
+      }
+
+      if (action === "served") {
+        await tx
+          .insert(rotations)
+          .values({
+            subjectKey: row.queue.subjectKey,
+            subgroup: row.queue.subgroup,
+            lastServedTelegramId: leaderTelegramId,
+            updatedAt: completedAt,
+          })
+          .onConflictDoUpdate({
+            target: [rotations.subjectKey, rotations.subgroup],
+            set: {
+              lastServedTelegramId: leaderTelegramId,
+              updatedAt: completedAt,
+            },
+          });
+      }
+    });
+
     return Response.json({ ok: true });
   } catch {
     return Response.json({ error: "Не удалось обновить очередь" }, { status: 500 });
