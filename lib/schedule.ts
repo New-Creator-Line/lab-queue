@@ -23,7 +23,7 @@ export function isExcludedSubject(subject: string, subjectFullName: string) {
   return EXCLUDED_SUBJECTS.some((pattern) => pattern.test(title));
 }
 
-type ApiLesson = {
+export type ApiLesson = {
   subject: string;
   subjectFullName: string;
   lessonTypeAbbrev: string;
@@ -38,9 +38,16 @@ type ApiLesson = {
   employees?: Array<{ firstName: string; lastName: string; middleName?: string }>;
 };
 
-type ApiSchedule = {
+export type ApiSchedule = {
   schedules?: Record<string, ApiLesson[]>;
   nextSchedules?: Record<string, ApiLesson[]>;
+};
+
+export type SemesterSubject = {
+  key: string;
+  abbrev: string;
+  name: string;
+  lessonTypes: string[];
 };
 
 export type SubjectSummary = {
@@ -110,23 +117,61 @@ function isLessonPast(date: string, endTime: string, now = new Date()) {
   return Number.isFinite(end) && end <= now.getTime();
 }
 
+async function fetchSchedulePayload(): Promise<ApiSchedule> {
+  const response = await fetch(`https://iis.bsuir.by/api/v1/schedule?studentGroup=${GROUP}`, {
+    headers: { Accept: "application/json" },
+    next: { revalidate: SCHEDULE_CACHE_SECONDS },
+    signal: AbortSignal.timeout(BSUIR_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`BSUIR schedule returned ${response.status}`);
+  return (await response.json()) as ApiSchedule;
+}
+
+export function parseSemesterSubjects(payload: ApiSchedule): SemesterSubject[] {
+  const grouped = new Map<string, SemesterSubject>();
+  const dayEntries = [
+    ...Object.entries(payload.schedules ?? {}),
+    ...Object.entries(payload.nextSchedules ?? {}),
+  ];
+  for (const [, lessons] of dayEntries) {
+    for (const lesson of lessons) {
+      if (!ALLOWED_TYPES.has(lesson.lessonTypeAbbrev)) continue;
+      if (isExcludedSubject(lesson.subject, lesson.subjectFullName)) continue;
+
+      const key = `${lesson.subject}::${lesson.subjectFullName}`;
+      const current = grouped.get(key) ?? {
+        key,
+        abbrev: lesson.subject,
+        name: lesson.subjectFullName,
+        lessonTypes: [],
+      };
+      if (!current.lessonTypes.includes(lesson.lessonTypeAbbrev)) {
+        current.lessonTypes.push(lesson.lessonTypeAbbrev);
+      }
+      grouped.set(key, current);
+    }
+  }
+
+  return [...grouped.values()].sort((left, right) =>
+    left.name.localeCompare(right.name, "ru"),
+  );
+}
+
+export async function getAllSemesterSubjects(): Promise<SemesterSubject[]> {
+  const payload = await fetchSchedulePayload();
+  return parseSemesterSubjects(payload);
+}
+
 export async function getSubjects(subgroup?: number | null): Promise<SubjectSummary[]> {
-  const [response, weekResponse] = await Promise.all([
-    fetch(`https://iis.bsuir.by/api/v1/schedule?studentGroup=${GROUP}`, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: SCHEDULE_CACHE_SECONDS },
-      signal: AbortSignal.timeout(BSUIR_TIMEOUT_MS),
-    }),
+  const [payload, weekResponse] = await Promise.all([
+    fetchSchedulePayload(),
     fetch("https://iis.bsuir.by/api/v1/schedule/current-week", {
       headers: { Accept: "application/json" },
       next: { revalidate: WEEK_CACHE_SECONDS },
       signal: AbortSignal.timeout(BSUIR_TIMEOUT_MS),
     }),
   ]);
-  if (!response.ok) throw new Error(`BSUIR schedule returned ${response.status}`);
   if (!weekResponse.ok) throw new Error(`BSUIR current week returned ${weekResponse.status}`);
-
-  const payload = (await response.json()) as ApiSchedule;
   const currentWeek = Number(await weekResponse.json());
   if (!Number.isInteger(currentWeek) || currentWeek < 1 || currentWeek > 4) {
     throw new Error("BSUIR current week is invalid");

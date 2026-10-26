@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { BrigadeModal } from "@/components/brigade-modal";
+import type { SemesterSubject } from "@/lib/schedule";
 
 type User = {
   telegramId: string;
@@ -96,6 +97,7 @@ type Queue = {
 type DashboardData = {
   user: User;
   subjects: Subject[];
+  allSubjects?: SemesterSubject[];
   queues: Queue[];
   subjectSettings?: Record<string, boolean>;
   scheduleAvailable: boolean;
@@ -571,7 +573,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
-  const [brigadeModalSubject, setBrigadeModalSubject] = useState<Subject | null>(null);
+  const [brigadeModalSubject, setBrigadeModalSubject] = useState<{ key: string; name: string; abbrev: string } | null>(null);
   const [adminSubjectSettingsOverrides, setAdminSubjectSettingsOverrides] = useState<Record<string, boolean>>({});
   const [togglingBrigadeKey, setTogglingBrigadeKey] = useState<string | null>(null);
 
@@ -596,6 +598,23 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   }
 
   const todayKey = useMemo(() => getTodayDateKey(), []);
+
+  const adminSubjectList = useMemo(() => {
+    if (data?.allSubjects && data.allSubjects.length > 0) {
+      return data.allSubjects;
+    }
+    return data?.subjects ?? [];
+  }, [data]);
+
+  const otherBrigadeSubjects = useMemo(() => {
+    if (!data?.allSubjects || !data?.subjectSettings) return [];
+    const currentWeekSubjectKeys = new Set(data.subjects?.map((s) => s.key) ?? []);
+    return data.allSubjects.filter(
+      (s) =>
+        Boolean(adminSubjectSettingsOverrides[s.key] ?? data.subjectSettings?.[s.key]) &&
+        !currentWeekSubjectKeys.has(s.key),
+    );
+  }, [data, adminSubjectSettingsOverrides]);
 
   const isDayCollapsed = useCallback(
     (date: string) => (collapsedDays[date] !== undefined ? collapsedDays[date] : date < todayKey),
@@ -751,7 +770,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   }
 
   async function handleResetRotation() {
-    const selectedSubject = data?.subjects.find((s) => s.key === resetSubjectKey);
+    const selectedSubject = adminSubjectList.find((s) => s.key === resetSubjectKey);
     const targetLabel =
       resetSubjectKey === "all"
         ? "всех предметов"
@@ -1125,6 +1144,28 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
           {data && view === "subjects" && (
             <>
               {!data.scheduleAvailable && <div className="warning-card">Расписание БГУИР сейчас недоступно. Уже созданные очереди продолжают работать.</div>}
+              {otherBrigadeSubjects.length > 0 && (
+                <div className="other-brigades-card">
+                  <div className="other-brigades-header">
+                    <Users size={16} />
+                    <span>Бригадная сдача (предметы других недель):</span>
+                  </div>
+                  <div className="other-brigades-list">
+                    {otherBrigadeSubjects.map((s) => (
+                      <button
+                        key={s.key}
+                        type="button"
+                        className="other-brigade-pill-btn"
+                        onClick={() => setBrigadeModalSubject(s)}
+                      >
+                        <span className="subject-code">{s.abbrev}</span>
+                        <span>{s.name}</span>
+                        <ChevronRight size={14} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="week-schedule">
                 {scheduleWeeks.map(({ weekOffset, weekNumber, days }) => (
                   <section className="schedule-week-block" key={weekOffset}>
@@ -1700,7 +1741,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                       disabled={resetLoading}
                     >
                       <option value="all">Все предметы</option>
-                      {data.subjects.map((s) => (
+                      {adminSubjectList.map((s) => (
                         <option key={s.key} value={s.key}>
                           {s.abbrev} — {s.name}
                         </option>
@@ -1740,7 +1781,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {data?.subjects?.map((subject) => {
+                  {adminSubjectList.map((subject) => {
                     const hasBrigades = Boolean(
                       adminSubjectSettingsOverrides[subject.key] ?? data.subjectSettings?.[subject.key],
                     );
@@ -1791,7 +1832,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                       </div>
                     );
                   })}
-                  {(!data?.subjects || data.subjects.length === 0) && (
+                  {adminSubjectList.length === 0 && (
                     <p className="admin-empty-note">Нет доступных предметов для настройки</p>
                   )}
                 </div>
