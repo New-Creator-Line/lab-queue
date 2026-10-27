@@ -1698,7 +1698,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                   <div>
                     <div className="admin-card-header-with-icon">
                       <RotateCcw size={18} className="admin-card-icon" />
-                      <strong>Сброс порядка очередей (первая лаба)</strong>
+                      <strong>Сброс порядка очередей <span style={{ whiteSpace: "nowrap" }}>(первая лаба)</span></strong>
                     </div>
                     <p>
                       Сбрасывает ротацию и перенесённые хвосты очереди. Порядок участников в очереди вернётся к исходному (строго по списку группы, как на первой лабораторной в году).
@@ -1748,7 +1748,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                   <div>
                     <div className="admin-card-header-with-icon">
                       <Users size={18} className="admin-card-icon" />
-                      <strong>Настройки бригадной сдачи (ПЗ / ЛР)</strong>
+                      <strong>Настройки бригадной сдачи <span style={{ whiteSpace: "nowrap" }}>(ПЗ / ЛР)</span></strong>
                     </div>
                     <p>
                       Включите режим бригад для предметов, где лабораторные или практические занятия сдаются бригадами. Участники смогут создавать бригады, а очередь будет строиться по ротации лидера.
