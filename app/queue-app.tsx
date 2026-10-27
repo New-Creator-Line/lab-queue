@@ -12,7 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Crown,
   DoorOpen,
   ExternalLink,
   GraduationCap,
@@ -1373,65 +1372,24 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                 const isMe =
                                   entry.telegramId === initialUser.telegramId ||
                                   entry.members?.some((m) => m.telegramId === initialUser.telegramId);
-                                const isBrigade = !!entry.brigadeId && !!entry.members && entry.members.length > 0;
-
-                                if (isBrigade) {
-                                  return (
-                                    <div className={isMe ? "actual-person is-brigade is-me" : "actual-person is-brigade"} key={entry.id}>
-                                      <div className="brigade-slot-top">
-                                        <span className="actual-number">{entry.position}</span>
-                                        <div className="brigade-slot-details">
-                                          <div className="brigade-title-row">
-                                            <span className="brigade-slot-badge">Бригада</span>
-                                            <strong>{entry.brigadeName || entry.displayName}</strong>
-                                            {isMe && <small style={{ color: "#2563eb", fontWeight: 700, fontSize: 10, textTransform: "uppercase" }}>твоя бригада</small>}
-                                          </div>
-                                          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "#64748b" }}>
-                                            <Crown size={13} className="crown-icon" />
-                                            <span>Лидер: <strong>{entry.leaderDisplayName || entry.displayName}</strong></span>
-                                          </div>
-                                        </div>
-                                        {entry.position === 1 && <span className="next-label">следующие</span>}
-                                        {initialUser.isAdmin && !queue.isLocked && (
-                                          <div className="admin-entry-actions">
-                                            <button title="Поднять на одну позицию" disabled={entry.position === 1 || pendingKey === `up-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "up" }, `up-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "up"))}><ArrowUp size={15} /></button>
-                                            <button title="Опустить на одну позицию" disabled={entry.position === queue.waiting.length || pendingKey === `down-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "down" }, `down-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "down"))}><ArrowDown size={15} /></button>
-                                            <button title="Сдавали" disabled={pendingKey === `served-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "served" }, `served-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><Check size={16} /></button>
-                                            <button title="Удалить из очереди" disabled={pendingKey === `skip-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "skipped" }, `skip-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><X size={15} /></button>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="brigade-members-chips">
-                                        {entry.members?.map((m) => (
-                                          <span
-                                            key={m.telegramId}
-                                            className={
-                                              m.telegramId === initialUser.telegramId
-                                                ? "brigade-member-chip is-me"
-                                                : m.isLeader
-                                                  ? "brigade-member-chip is-leader"
-                                                  : "brigade-member-chip"
-                                            }
-                                          >
-                                            {m.isLeader && "👑 "}{m.displayName}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                }
-
                                 return (
                                   <div className={isMe ? "actual-person is-me" : "actual-person"} key={entry.id}>
                                     <span className="actual-number">{entry.position}</span>
                                     <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
-                                    <div><strong>{entry.displayName}</strong>{isMe && <small>это ты</small>}</div>
-                                    {entry.position === 1 && <span className="next-label">следующий</span>}
+                                    <div>
+                                      <strong>{entry.displayName}</strong>
+                                      {isMe && <small>{entry.brigadeId ? "твоя бригада" : "это ты"}</small>}
+                                    </div>
+                                    {entry.position === 1 && (
+                                      <span className="next-label">
+                                        {entry.brigadeId ? "следующие" : "следующий"}
+                                      </span>
+                                    )}
                                     {initialUser.isAdmin && !queue.isLocked && (
                                       <div className="admin-entry-actions">
                                         <button title="Поднять на одну позицию" disabled={entry.position === 1 || pendingKey === `up-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "up" }, `up-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "up"))}><ArrowUp size={15} /></button>
                                         <button title="Опустить на одну позицию" disabled={entry.position === queue.waiting.length || pendingKey === `down-${entry.id}`} onClick={() => act("/api/admin/reorder", { entryId: entry.id, direction: "down" }, `down-${entry.id}`, () => moveEntryOptimistically(queue.id, entry.id, "down"))}><ArrowDown size={15} /></button>
-                                        <button title="Сдавал" disabled={pendingKey === `served-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "served" }, `served-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><Check size={16} /></button>
+                                        <button title={entry.brigadeId ? "Сдавали" : "Сдавал"} disabled={pendingKey === `served-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "served" }, `served-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><Check size={16} /></button>
                                         <button title="Удалить из очереди" disabled={pendingKey === `skip-${entry.id}`} onClick={() => act("/api/admin/entry", { entryId: entry.id, action: "skipped" }, `skip-${entry.id}`, () => removeEntryOptimistically(queue.id, entry.id))}><X size={15} /></button>
                                       </div>
                                     )}

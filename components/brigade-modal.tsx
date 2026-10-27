@@ -281,11 +281,6 @@ export function BrigadeModal({
                   <span className="brigade-slot-badge">Ваша бригада</span>
                   <h4 style={{ margin: "4px 0 0", fontSize: 18, fontWeight: 800 }}>{myBrigade.name}</h4>
                 </div>
-                {isLeader && (
-                  <span style={{ background: "#fef3c7", color: "#92400e", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 8, border: "1px solid #fde68a" }}>
-                    👑 Вы лидер
-                  </span>
-                )}
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>

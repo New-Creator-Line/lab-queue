@@ -424,7 +424,7 @@ export async function computeQueueSequence(
         })),
         completedNames: servedSlots.map((slot) =>
           slot.isBrigade
-            ? `${slot.brigadeName} (${slot.members.map((m) => m.displayName).join(", ")})`
+            ? slot.brigadeName!
             : slot.leaderDisplayName,
         ),
       });
