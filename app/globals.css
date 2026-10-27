@@ -569,7 +569,29 @@ fieldset { border:0; padding:0; margin:22px 0 0; }
     font-size:12px;
   }
 
-  .admin-users-card, .admin-closed-queues-card, .admin-reset-card { padding:16px 14px; border-radius:18px; }
+  .admin-users-card, .admin-closed-queues-card, .admin-reset-card, .admin-brigade-settings-card { padding:16px 14px; border-radius:18px; }
+  .admin-subject-setting-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+  .admin-subject-setting-info {
+    width: 100%;
+  }
+  .admin-subject-setting-actions {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .admin-subject-setting-actions button {
+    flex: 1 1 0;
+    min-height: 38px;
+    justify-content: center;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
   .admin-reset-form { flex-direction:column; align-items:stretch; gap:12px; }
   .admin-reset-select-group { width:100%; min-width:0; }
   .admin-reset-submit-button { width:100%; min-height:40px; }
@@ -1576,11 +1598,12 @@ html.dark .admin-brigade-settings-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 14px 16px;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #f8fafc;
-  gap: 12px;
+  gap: 16px;
+  transition: background 0.15s ease;
 }
 html.dark .admin-subject-setting-row {
   background: #0f172a;
@@ -1589,11 +1612,20 @@ html.dark .admin-subject-setting-row {
 .admin-subject-setting-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
+  flex: 1;
+}
+.admin-subject-setting-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .admin-subject-setting-info strong {
   font-size: 14px;
+  color: var(--ink);
+  word-break: break-word;
 }
 .admin-subject-setting-info small {
   font-size: 12px;
@@ -1602,9 +1634,16 @@ html.dark .admin-subject-setting-row {
 html.dark .admin-subject-setting-info small {
   color: #94a3b8;
 }
+.admin-subject-setting-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .admin-toggle-brigade-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 8px 14px;
   border-radius: 10px;
@@ -1632,6 +1671,11 @@ html.dark .admin-toggle-brigade-btn.active {
   background: #2e1065;
   color: #c4b5fd;
   border-color: #6d28d9;
+}
+.admin-brigades-manage-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .brigade-member-card {
@@ -1674,6 +1718,31 @@ html.dark .other-brigade-card {
 html.dark .other-brigade-card.is-my-team {
   background: #2e1065;
   border-color: #4c1d95;
+}
+
+.brigade-member-tag {
+  font-size: 12px;
+  background: #e2e8f0;
+  color: #334155;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.brigade-member-tag.is-leader {
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+}
+html.dark .brigade-member-tag {
+  background: #1e293b;
+  color: #cbd5e1;
+}
+html.dark .brigade-member-tag.is-leader {
+  background: #78350f;
+  color: #fef3c7;
 }
 
 .other-brigades-card {

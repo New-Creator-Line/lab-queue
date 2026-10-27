@@ -573,6 +573,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
   const [brigadeModalSubject, setBrigadeModalSubject] = useState<{ key: string; name: string; abbrev: string } | null>(null);
+  const [brigadeModalIsAdmin, setBrigadeModalIsAdmin] = useState(false);
   const [adminSubjectSettingsOverrides, setAdminSubjectSettingsOverrides] = useState<Record<string, boolean>>({});
   const [togglingBrigadeKey, setTogglingBrigadeKey] = useState<string | null>(null);
 
@@ -878,6 +879,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
 
   const handleCloseBrigadeModal = useCallback(() => {
     setBrigadeModalSubject(null);
+    setBrigadeModalIsAdmin(false);
   }, []);
 
   const handleBrigadeUpdated = useCallback(() => {
@@ -1165,7 +1167,10 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                         key={s.key}
                         type="button"
                         className="other-brigade-pill-btn"
-                        onClick={() => setBrigadeModalSubject(s)}
+                        onClick={() => {
+                          setBrigadeModalIsAdmin(false);
+                          setBrigadeModalSubject(s);
+                        }}
                       >
                         <span className="subject-code">{s.abbrev}</span>
                         <span>{s.name}</span>
@@ -1253,7 +1258,10 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                         <button
                                           type="button"
                                           className="brigade-manage-btn"
-                                          onClick={() => setBrigadeModalSubject(subject)}
+                                          onClick={() => {
+                                            setBrigadeModalIsAdmin(false);
+                                            setBrigadeModalSubject(subject);
+                                          }}
                                         >
                                           <Users size={14} /> Моя бригада
                                         </button>
@@ -1757,13 +1765,13 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                     return (
                       <div className="admin-subject-setting-row" key={subject.key}>
                         <div className="admin-subject-setting-info">
-                          <div>
+                          <div className="admin-subject-setting-title">
                             <span className="subject-code">{subject.abbrev}</span>{" "}
                             <strong>{subject.name}</strong>
                           </div>
                           <small>Типы: {subject.lessonTypes.join(", ")}</small>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div className="admin-subject-setting-actions">
                           <button
                             type="button"
                             className={
@@ -1789,11 +1797,13 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                           {hasBrigades && (
                             <button
                               type="button"
-                              className="btn-secondary-btn"
-                              style={{ padding: "7px 12px", fontSize: 12 }}
-                              onClick={() => setBrigadeModalSubject(subject)}
+                              className="btn-secondary-btn admin-brigades-manage-btn"
+                              onClick={() => {
+                                setBrigadeModalIsAdmin(true);
+                                setBrigadeModalSubject(subject);
+                              }}
                             >
-                              Бригады
+                              <Users size={14} /> Бригады
                             </button>
                           )}
                         </div>
@@ -1915,6 +1925,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
         onClose={handleCloseBrigadeModal}
         subject={brigadeModalSubject}
         currentUser={initialUser}
+        isAdminMode={brigadeModalIsAdmin}
         onBrigadeUpdated={handleBrigadeUpdated}
       />
     </main>

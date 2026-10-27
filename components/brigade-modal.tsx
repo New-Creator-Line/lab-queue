@@ -47,6 +47,7 @@ type BrigadeModalProps = {
     isAdmin: boolean;
   };
   onBrigadeUpdated?: () => void;
+  isAdminMode?: boolean;
 };
 
 export function BrigadeModal({
@@ -55,6 +56,7 @@ export function BrigadeModal({
   subject,
   currentUser,
   onBrigadeUpdated,
+  isAdminMode = false,
 }: BrigadeModalProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -243,6 +245,31 @@ export function BrigadeModal({
     }
   }
 
+  async function handleAdminDisbandBrigade(brigadeId: number, name: string) {
+    if (!window.confirm(`Вы уверены, что хотите расформировать бригаду «${name}»?`)) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/brigades", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brigadeId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || "Не удалось расформировать бригаду");
+      }
+      await loadData();
+      onBrigadeUpdated?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка расформирования");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
@@ -254,7 +281,9 @@ export function BrigadeModal({
       >
         <div className="brigade-modal-head">
           <div>
-            <h3 id="brigade-modal-title">Бригады · {subject.abbrev}</h3>
+            <h3 id="brigade-modal-title">
+              {isAdminMode ? `Бригады по предмету · ${subject.abbrev}` : `Бригада · ${subject.abbrev}`}
+            </h3>
             <small style={{ color: "#64748b" }}>{subject.name}</small>
           </div>
           <button className="brigade-modal-close" onClick={onClose} aria-label="Закрыть">
@@ -272,6 +301,60 @@ export function BrigadeModal({
           {loading ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "30px 0", gap: 8, color: "#64748b" }}>
               <LoaderCircle className="spin" size={20} /> Загрузка данных о бригадах…
+            </div>
+          ) : isAdminMode ? (
+            /* Admin view: management of all brigades */
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Сформированные бригады ({allBrigades.length}):
+              </span>
+
+              {allBrigades.length === 0 ? (
+                <div style={{ padding: "30px 10px", textAlign: "center", color: "#64748b", fontSize: 13 }}>
+                  По этому предмету ещё не создано ни одной бригады
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 380, overflowY: "auto" }}>
+                  {allBrigades.map((brigade) => (
+                    <div key={brigade.id} className="other-brigade-card" style={{ padding: "12px 14px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <strong style={{ fontSize: 14 }}>{brigade.name}</strong>
+                            <span className="subgroup-tag" style={{ fontSize: 10 }}>
+                              {brigade.subgroup}-я подгруппа
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                            Лидер: <strong style={{ color: "var(--ink)" }}>{brigade.leaderDisplayName}</strong>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-danger-outline"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => handleAdminDisbandBrigade(brigade.id, brigade.name)}
+                          disabled={saving}
+                          title="Расформировать бригаду"
+                        >
+                          <Trash2 size={13} /> Расформировать
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                        {brigade.members.map((m) => (
+                          <span
+                            key={m.telegramId}
+                            className={m.isLeader ? "brigade-member-tag is-leader" : "brigade-member-tag"}
+                          >
+                            {m.isLeader && <Crown size={12} />}
+                            {m.displayName}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : myBrigade && !isEditing ? (
             /* View existing brigade */
@@ -454,45 +537,6 @@ export function BrigadeModal({
                   )}
                   {isEditing ? "Сохранить изменения" : "Создать бригаду"}
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* List of other brigades for visibility */}
-          {allBrigades.length > 0 && (
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
-                Сформированные бригады ({allBrigades.length}):
-              </span>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto" }}>
-                {allBrigades.map((brigade) => (
-                  <div
-                    key={brigade.id}
-                    className={brigade.id === myBrigade?.id ? "other-brigade-card is-my-team" : "other-brigade-card"}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <strong>{brigade.name}</strong>
-                      <small style={{ color: "#64748b" }}>Лидер: {brigade.leaderDisplayName}</small>
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-                      {brigade.members.map((m) => (
-                        <span
-                          key={m.telegramId}
-                          style={{
-                            fontSize: 11,
-                            background: m.isLeader ? "#fef3c7" : "#e2e8f0",
-                            color: m.isLeader ? "#92400e" : "#334155",
-                            padding: "2px 6px",
-                            borderRadius: 6,
-                            fontWeight: m.isLeader ? 700 : 500,
-                          }}
-                        >
-                          {m.displayName}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           )}
