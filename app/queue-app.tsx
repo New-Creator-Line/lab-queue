@@ -618,11 +618,6 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     );
   }, [data, adminSubjectSettingsOverrides]);
 
-  const activeUserBrigadesCount = useMemo(
-    () => allBrigadeSubjects.filter((s) => Boolean(userBrigades[s.key])).length,
-    [allBrigadeSubjects, userBrigades],
-  );
-
   const isDayCollapsed = useCallback(
     (date: string) => (collapsedDays[date] !== undefined ? collapsedDays[date] : date < todayKey),
     [collapsedDays, todayKey],
@@ -1132,7 +1127,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                 void loadUserBrigades();
               }}
             >
-              <Users2 size={18} /> <span className="tab-desktop">Бригады</span><span className="tab-mobile">Бригады</span> {activeUserBrigadesCount > 0 && <b>{activeUserBrigadesCount}</b>}
+              <Users2 size={18} /> <span className="tab-desktop">Бригады</span><span className="tab-mobile">Бригады</span>
             </button>
             {(initialUser.isAdmin || initialUser.isSuperAdmin) && (
               <>
@@ -1478,110 +1473,114 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                   <p>Сейчас нет предметов, для которых включена бригадная сдача.</p>
                 </div>
               ) : (
-                <div className="brigades-subject-grid">
+                <div className="subject-grid">
                   {allBrigadeSubjects.map((subject) => {
                     const myBrigade = userBrigades[subject.key];
                     const isLeader = myBrigade?.leaderTelegramId === initialUser.telegramId;
                     return (
-                      <article className="brigade-subject-card" key={subject.key}>
-                        <div className="brigade-subject-card-head">
-                          <div className="brigade-subject-title-wrap">
+                      <article className="subject-card brigade-card" key={subject.key}>
+                        <div className="subject-top">
+                          <div className="type-tags">
                             <span className="subject-code">{subject.abbrev}</span>
-                            <div>
-                              <h2>{subject.name}</h2>
-                              <span className="brigade-badge-pill">Бригадная сдача</span>
-                            </div>
+                            <span className="brigade-badge"><Users size={12} /> Бригадная сдача</span>
                           </div>
                           {initialUser.isAdmin && (
                             <button
                               type="button"
                               className="brigade-admin-all-btn"
-                              title="Посмотреть все бригады по этому предмету"
+                              title="Посмотреть все зарегистрированные бригады по этому предмету"
                               onClick={() => {
                                 setBrigadeModalIsAdmin(true);
                                 setBrigadeModalSubject(subject);
                               }}
                             >
-                              <ShieldCheck size={14} /> Все бригады
+                              <ShieldCheck size={13} /> Все бригады
                             </button>
                           )}
                         </div>
 
-                        <div className="brigade-subject-card-body">
-                          {myBrigade ? (
-                            <div className="brigade-subject-my-team">
-                              <div className="brigade-team-header">
-                                <div className="brigade-team-title">
-                                  <Users size={16} />
-                                  <strong>{myBrigade.name || "Бригада"}</strong>
-                                </div>
-                                <span className={`brigade-role-badge ${isLeader ? "is-leader" : ""}`}>
-                                  {isLeader ? (
-                                    <>
-                                      <Crown size={12} /> Вы лидер
-                                    </>
-                                  ) : (
-                                    "Вы участник"
-                                  )}
-                                </span>
-                              </div>
+                        <h2>{subject.name}</h2>
 
-                              <div className="brigade-members-flow">
-                                <span className="brigade-members-label">
-                                  Состав ({myBrigade.members.length}):
-                                </span>
-                                <div className="brigade-members-chips">
-                                  {myBrigade.members.map((member) => (
-                                    <span
-                                      key={member.telegramId}
-                                      className={`brigade-member-chip ${
-                                        member.isLeader ? "is-leader" : ""
-                                      } ${
-                                        member.telegramId === initialUser.telegramId ? "is-me" : ""
-                                      }`}
-                                    >
-                                      {member.isLeader && <Crown size={12} />}
-                                      <span>{member.displayName}</span>
-                                      {member.telegramId === initialUser.telegramId && (
-                                        <small className="member-me-tag">(вы)</small>
-                                      )}
-                                    </span>
-                                  ))}
-                                </div>
+                        {myBrigade ? (
+                          <div className="brigade-team-box">
+                            <div className="brigade-team-row">
+                              <div className="brigade-team-title">
+                                <Users size={15} />
+                                <strong>{myBrigade.name || "Бригада"}</strong>
+                              </div>
+                              <span className={`brigade-role-pill ${isLeader ? "is-leader" : ""}`}>
+                                {isLeader ? (
+                                  <>
+                                    <Crown size={11} /> Вы лидер
+                                  </>
+                                ) : (
+                                  "Вы участник"
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="brigade-members-row">
+                              <span className="brigade-members-label">
+                                Состав ({myBrigade.members.length}):
+                              </span>
+                              <div className="brigade-members-chips">
+                                {myBrigade.members.map((member) => (
+                                  <span
+                                    key={member.telegramId}
+                                    className={`brigade-member-chip ${
+                                      member.isLeader ? "is-leader" : ""
+                                    } ${
+                                      member.telegramId === initialUser.telegramId ? "is-me" : ""
+                                    }`}
+                                  >
+                                    {member.isLeader && <Crown size={11} />}
+                                    <span>{member.displayName}</span>
+                                    {member.telegramId === initialUser.telegramId && (
+                                      <small className="member-me-tag">(вы)</small>
+                                    )}
+                                  </span>
+                                ))}
                               </div>
                             </div>
-                          ) : (
-                            <div className="brigade-subject-no-team">
-                              <p>Вы пока не состоите в бригаде по этому предмету.</p>
-                              <small>Создайте свою бригаду или дождитесь добавления лидером.</small>
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="brigade-no-team-box">
+                            <p>Вы пока не состоите в бригаде по этому предмету</p>
+                            <small>Создайте свою бригаду или дождитесь добавления лидером.</small>
+                          </div>
+                        )}
 
-                        <div className="brigade-subject-card-actions">
+                        <div className="card-bottom">
                           {myBrigade ? (
-                            <button
-                              type="button"
-                              className="brigade-card-action-btn primary"
-                              onClick={() => {
-                                setBrigadeModalIsAdmin(false);
-                                setBrigadeModalSubject(subject);
-                              }}
-                            >
-                              <Users size={15} />
-                              {isLeader ? "Управление составом" : "Состав бригады"}
-                            </button>
+                            <>
+                              <span className="queue-count">
+                                <Users size={14} /> Лидер: {myBrigade.leaderDisplayName}
+                              </span>
+                              <button
+                                type="button"
+                                className={isLeader ? "join-button" : "joined-button"}
+                                onClick={() => {
+                                  setBrigadeModalIsAdmin(false);
+                                  setBrigadeModalSubject(subject);
+                                }}
+                              >
+                                <Users size={14} /> {isLeader ? "Управление составом" : "Состав бригады"}
+                              </button>
+                            </>
                           ) : (
-                            <button
-                              type="button"
-                              className="brigade-card-action-btn primary"
-                              onClick={() => {
-                                setBrigadeModalIsAdmin(false);
-                                setBrigadeModalSubject(subject);
-                              }}
-                            >
-                              <UserPlus size={15} /> Создать бригаду
-                            </button>
+                            <>
+                              <span className="queue-empty">Бригада не сформирована</span>
+                              <button
+                                type="button"
+                                className="join-button"
+                                onClick={() => {
+                                  setBrigadeModalIsAdmin(false);
+                                  setBrigadeModalSubject(subject);
+                                }}
+                              >
+                                <UserPlus size={14} /> Создать бригаду
+                              </button>
+                            </>
                           )}
                         </div>
                       </article>
