@@ -66,6 +66,77 @@ export async function setSubjectBrigadesEnabled(
     });
 }
 
+export async function getUserAllBrigades(
+  telegramId: string,
+): Promise<Record<string, BrigadeWithMembers>> {
+  const db = getDb();
+  const memberships = await db
+    .select({
+      brigadeId: brigadeMembers.brigadeId,
+      subjectKey: brigadeMembers.subjectKey,
+    })
+    .from(brigadeMembers)
+    .where(eq(brigadeMembers.telegramId, telegramId));
+
+  if (memberships.length === 0) return {};
+
+  const brigadeIds = Array.from(new Set(memberships.map((m) => m.brigadeId)));
+
+  const brigadeRows = await db
+    .select({
+      brigade: brigades,
+      leader: users,
+    })
+    .from(brigades)
+    .innerJoin(users, eq(brigades.leaderTelegramId, users.telegramId))
+    .where(inArray(brigades.id, brigadeIds));
+
+  const allMembers = await db
+    .select({
+      member: brigadeMembers,
+      user: users,
+    })
+    .from(brigadeMembers)
+    .innerJoin(users, eq(brigadeMembers.telegramId, users.telegramId))
+    .where(inArray(brigadeMembers.brigadeId, brigadeIds));
+
+  const membersByBrigadeId = new Map<number, BrigadeMemberDetail[]>();
+  for (const row of allMembers) {
+    const list = membersByBrigadeId.get(row.member.brigadeId) ?? [];
+    list.push({
+      telegramId: row.user.telegramId,
+      displayName: row.user.displayName,
+      username: row.user.username,
+      subgroup: row.user.subgroup,
+      isLeader: false,
+    });
+    membersByBrigadeId.set(row.member.brigadeId, list);
+  }
+
+  const result: Record<string, BrigadeWithMembers> = {};
+  for (const { brigade, leader } of brigadeRows) {
+    const rawMembers = membersByBrigadeId.get(brigade.id) ?? [];
+    const members: BrigadeMemberDetail[] = rawMembers.map((m) => ({
+      ...m,
+      isLeader: m.telegramId === brigade.leaderTelegramId,
+    }));
+    members.sort((a, b) => (b.isLeader ? 1 : 0) - (a.isLeader ? 1 : 0));
+
+    result[brigade.subjectKey] = {
+      id: brigade.id,
+      subjectKey: brigade.subjectKey,
+      subgroup: brigade.subgroup,
+      name: brigade.name,
+      leaderTelegramId: brigade.leaderTelegramId,
+      leaderDisplayName: leader.displayName,
+      createdAt: brigade.createdAt,
+      members,
+    };
+  }
+
+  return result;
+}
+
 export async function getUserBrigade(
   subjectKey: string,
   telegramId: string,

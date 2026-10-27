@@ -4,6 +4,7 @@ import {
   getAvailableStudentsForSubject,
   getSubjectBrigades,
   getSubjectSettings,
+  getUserAllBrigades,
   getUserBrigade,
 } from "@/lib/brigades";
 import { requireCurrentUser } from "@/lib/telegram-auth";
@@ -15,7 +16,8 @@ export async function GET(request: Request) {
     const subjectKey = url.searchParams.get("subjectKey");
 
     if (!subjectKey) {
-      return Response.json({ error: "Не указан предмет" }, { status: 400 });
+      const myBrigades = await getUserAllBrigades(user.telegramId);
+      return Response.json({ myBrigades });
     }
 
     const [hasBrigades, myBrigade, allBrigades, availableStudents] = await Promise.all([

@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Crown,
   DoorOpen,
   ExternalLink,
   GraduationCap,
@@ -22,11 +23,13 @@ import {
   RotateCcw,
   ShieldCheck,
   Sun,
+  UserPlus,
   Users,
+  Users2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { BrigadeModal } from "@/components/brigade-modal";
+import { BrigadeModal, type BrigadeDetail } from "@/components/brigade-modal";
 import type { SemesterSubject } from "@/lib/schedule";
 
 type User = {
@@ -556,7 +559,9 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshAnimation, setRefreshAnimation] = useState(0);
-  const [view, setView] = useState<"subjects" | "queues" | "calendar" | "admins">("subjects");
+  const [view, setView] = useState<"subjects" | "queues" | "brigades" | "calendar" | "admins">("subjects");
+  const [userBrigades, setUserBrigades] = useState<Record<string, BrigadeDetail>>({});
+  const [userBrigadesLoading, setUserBrigadesLoading] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
   const [closedQueues, setClosedQueues] = useState<ClosedQueue[]>([]);
@@ -606,15 +611,17 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     return data?.subjects ?? [];
   }, [data]);
 
-  const otherBrigadeSubjects = useMemo(() => {
+  const allBrigadeSubjects = useMemo(() => {
     if (!data?.allSubjects || !data?.subjectSettings) return [];
-    const currentWeekSubjectKeys = new Set(data.subjects?.map((s) => s.key) ?? []);
-    return data.allSubjects.filter(
-      (s) =>
-        Boolean(adminSubjectSettingsOverrides[s.key] ?? data.subjectSettings?.[s.key]) &&
-        !currentWeekSubjectKeys.has(s.key),
+    return data.allSubjects.filter((s) =>
+      Boolean(adminSubjectSettingsOverrides[s.key] ?? data.subjectSettings?.[s.key]),
     );
   }, [data, adminSubjectSettingsOverrides]);
+
+  const activeUserBrigadesCount = useMemo(
+    () => allBrigadeSubjects.filter((s) => Boolean(userBrigades[s.key])).length,
+    [allBrigadeSubjects, userBrigades],
+  );
 
   const isDayCollapsed = useCallback(
     (date: string) => (collapsedDays[date] !== undefined ? collapsedDays[date] : date < todayKey),
@@ -656,8 +663,26 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
 
   const isRefreshing =
     refreshing ||
+    (view === "brigades" && userBrigadesLoading) ||
     (view === "calendar" && historyLoading) ||
     (view === "admins" && (closedQueuesLoading || adminUsersLoading));
+
+  const loadUserBrigades = useCallback(async () => {
+    setUserBrigadesLoading(true);
+    try {
+      const res = await fetch("/api/brigades", { cache: "no-store" });
+      const json = (await res.json().catch(() => ({}))) as {
+        myBrigades?: Record<string, BrigadeDetail>;
+      };
+      if (res.ok && json.myBrigades) {
+        setUserBrigades(json.myBrigades);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setUserBrigadesLoading(false);
+    }
+  }, []);
 
   const loadHistory = useCallback(async (date?: string) => {
     setHistoryLoading(true);
@@ -808,9 +833,12 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   }
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => void refreshAll(), 0);
+    const initialLoad = window.setTimeout(() => {
+      void refreshAll();
+      void loadUserBrigades();
+    }, 0);
     return () => window.clearTimeout(initialLoad);
-  }, [refreshAll]);
+  }, [refreshAll, loadUserBrigades]);
 
   useEffect(() => {
     if (brigadeModalSubject !== null) return;
@@ -866,6 +894,9 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
     setRefreshAnimation((value) => value + 1);
     if (view === "queues") {
       void refreshQueues();
+    } else if (view === "brigades") {
+      void loadUserBrigades();
+      void refreshAll();
     } else if (view === "calendar") {
       void loadHistory(selectedHistoryDate ?? undefined);
     } else if (view === "admins") {
@@ -874,8 +905,9 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
       void refreshQueues();
     } else {
       void refreshAll();
+      void loadUserBrigades();
     }
-  }, [view, refreshQueues, loadHistory, selectedHistoryDate, initialUser.isSuperAdmin, loadAdminUsers, loadClosedQueues, refreshAll]);
+  }, [view, refreshQueues, loadUserBrigades, loadHistory, selectedHistoryDate, initialUser.isSuperAdmin, loadAdminUsers, loadClosedQueues, refreshAll]);
 
   const handleCloseBrigadeModal = useCallback(() => {
     setBrigadeModalSubject(null);
@@ -883,8 +915,9 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
   }, []);
 
   const handleBrigadeUpdated = useCallback(() => {
+    void loadUserBrigades();
     handleManualRefresh();
-  }, [handleManualRefresh]);
+  }, [loadUserBrigades, handleManualRefresh]);
 
   async function act(
     path: string,
@@ -1035,14 +1068,16 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
       ? { title: "Расписание по дням", description: "Только лабораторные и практические занятия." }
       : view === "queues"
         ? { title: "Твои очереди", description: "Порядок обновляется автоматически каждые 15 секунд." }
-        : view === "calendar"
-          ? { title: "История очередей", description: "Календарь прошедших и текущих очередей с полным списком участников." }
-          : {
-              title: initialUser.isSuperAdmin ? "Администрирование" : "Управление очередями",
-              description: initialUser.isSuperAdmin
-                ? "Управление правами участников и восстановление закрытых очередей."
-                : "Восстановление случайно закрытых очередей.",
-            };
+        : view === "brigades"
+          ? { title: "Бригады по предметам", description: "Создание и управление вашими бригадами для лабораторных и практических занятий." }
+          : view === "calendar"
+            ? { title: "История очередей", description: "Календарь прошедших и текущих очередей с полным списком участников." }
+            : {
+                title: initialUser.isSuperAdmin ? "Администрирование" : "Управление очередями",
+                description: initialUser.isSuperAdmin
+                  ? "Управление правами участников и восстановление закрытых очередей."
+                  : "Восстановление случайно закрытых очередей.",
+              };
 
   return (
     <main className="app-shell">
@@ -1086,6 +1121,18 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
               }}
             >
               <Users size={18} /> <span className="tab-desktop">Мои очереди</span><span className="tab-mobile">Очереди</span> {myQueues.length > 0 && <b>{myQueues.length}</b>}
+            </button>
+            <button
+              className={view === "brigades" ? "active" : ""}
+              onClick={() => {
+                if (view !== "brigades") {
+                  setView("brigades");
+                  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "instant" });
+                }
+                void loadUserBrigades();
+              }}
+            >
+              <Users2 size={18} /> <span className="tab-desktop">Бригады</span><span className="tab-mobile">Бригады</span> {activeUserBrigadesCount > 0 && <b>{activeUserBrigadesCount}</b>}
             </button>
             {(initialUser.isAdmin || initialUser.isSuperAdmin) && (
               <>
@@ -1136,6 +1183,8 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                   ? "Обновить данные панели администратора"
                   : view === "calendar"
                   ? "Обновить историю очередей"
+                  : view === "brigades"
+                  ? "Обновить данные о бригадах"
                   : "Обновить расписание и очереди"
               }
               aria-label="Обновить"
@@ -1155,31 +1204,6 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
           {data && view === "subjects" && (
             <>
               {!data.scheduleAvailable && <div className="warning-card">Расписание БГУИР сейчас недоступно. Уже созданные очереди продолжают работать.</div>}
-              {otherBrigadeSubjects.length > 0 && (
-                <div className="other-brigades-card">
-                  <div className="other-brigades-header">
-                    <Users size={16} />
-                    <span>Бригадная сдача (предметы других недель):</span>
-                  </div>
-                  <div className="other-brigades-list">
-                    {otherBrigadeSubjects.map((s) => (
-                      <button
-                        key={s.key}
-                        type="button"
-                        className="other-brigade-pill-btn"
-                        onClick={() => {
-                          setBrigadeModalIsAdmin(false);
-                          setBrigadeModalSubject(s);
-                        }}
-                      >
-                        <span className="subject-code">{s.abbrev}</span>
-                        <span>{s.name}</span>
-                        <ChevronRight size={14} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
               <div className="week-schedule">
                 {scheduleWeeks.map(({ weekOffset, weekNumber, days }) => (
                   <section className="schedule-week-block" key={weekOffset}>
@@ -1253,20 +1277,6 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                     <div className="lesson-line">
                                       <Clock3 size={15} /><span>{lesson.time}</span><span className="dot">·</span><DoorOpen size={15} /><span>{lesson.room}</span>
                                     </div>
-                                    {hasBrigades && (
-                                      <div style={{ marginTop: 8 }}>
-                                        <button
-                                          type="button"
-                                          className="brigade-manage-btn"
-                                          onClick={() => {
-                                            setBrigadeModalIsAdmin(false);
-                                            setBrigadeModalSubject(subject);
-                                          }}
-                                        >
-                                          <Users size={14} /> Моя бригада
-                                        </button>
-                                      </div>
-                                    )}
                                     <div className="card-bottom">
                                       {queue ? <span className="queue-count"><Users size={16} /> {queue.waiting.length} в очереди</span> : <span className="queue-empty">Очередь пока пуста</span>}
                                       {lesson.isPast ? (
@@ -1453,6 +1463,131 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                     </section>
                   );
                 })
+              )}
+            </div>
+          )}
+
+          {data && view === "brigades" && (
+            <div className="brigades-view-container">
+              {allBrigadeSubjects.length === 0 ? (
+                <div className="empty-state">
+                  <span>
+                    <Users2 size={30} />
+                  </span>
+                  <h2>Нет предметов с бригадами</h2>
+                  <p>Сейчас нет предметов, для которых включена бригадная сдача.</p>
+                </div>
+              ) : (
+                <div className="brigades-subject-grid">
+                  {allBrigadeSubjects.map((subject) => {
+                    const myBrigade = userBrigades[subject.key];
+                    const isLeader = myBrigade?.leaderTelegramId === initialUser.telegramId;
+                    return (
+                      <article className="brigade-subject-card" key={subject.key}>
+                        <div className="brigade-subject-card-head">
+                          <div className="brigade-subject-title-wrap">
+                            <span className="subject-code">{subject.abbrev}</span>
+                            <div>
+                              <h2>{subject.name}</h2>
+                              <span className="brigade-badge-pill">Бригадная сдача</span>
+                            </div>
+                          </div>
+                          {initialUser.isAdmin && (
+                            <button
+                              type="button"
+                              className="brigade-admin-all-btn"
+                              title="Посмотреть все бригады по этому предмету"
+                              onClick={() => {
+                                setBrigadeModalIsAdmin(true);
+                                setBrigadeModalSubject(subject);
+                              }}
+                            >
+                              <ShieldCheck size={14} /> Все бригады
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="brigade-subject-card-body">
+                          {myBrigade ? (
+                            <div className="brigade-subject-my-team">
+                              <div className="brigade-team-header">
+                                <div className="brigade-team-title">
+                                  <Users size={16} />
+                                  <strong>{myBrigade.name || "Бригада"}</strong>
+                                </div>
+                                <span className={`brigade-role-badge ${isLeader ? "is-leader" : ""}`}>
+                                  {isLeader ? (
+                                    <>
+                                      <Crown size={12} /> Вы лидер
+                                    </>
+                                  ) : (
+                                    "Вы участник"
+                                  )}
+                                </span>
+                              </div>
+
+                              <div className="brigade-members-flow">
+                                <span className="brigade-members-label">
+                                  Состав ({myBrigade.members.length}):
+                                </span>
+                                <div className="brigade-members-chips">
+                                  {myBrigade.members.map((member) => (
+                                    <span
+                                      key={member.telegramId}
+                                      className={`brigade-member-chip ${
+                                        member.isLeader ? "is-leader" : ""
+                                      } ${
+                                        member.telegramId === initialUser.telegramId ? "is-me" : ""
+                                      }`}
+                                    >
+                                      {member.isLeader && <Crown size={12} />}
+                                      <span>{member.displayName}</span>
+                                      {member.telegramId === initialUser.telegramId && (
+                                        <small className="member-me-tag">(вы)</small>
+                                      )}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="brigade-subject-no-team">
+                              <p>Вы пока не состоите в бригаде по этому предмету.</p>
+                              <small>Создайте свою бригаду или дождитесь добавления лидером.</small>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="brigade-subject-card-actions">
+                          {myBrigade ? (
+                            <button
+                              type="button"
+                              className="brigade-card-action-btn primary"
+                              onClick={() => {
+                                setBrigadeModalIsAdmin(false);
+                                setBrigadeModalSubject(subject);
+                              }}
+                            >
+                              <Users size={15} />
+                              {isLeader ? "Управление составом" : "Состав бригады"}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="brigade-card-action-btn primary"
+                              onClick={() => {
+                                setBrigadeModalIsAdmin(false);
+                                setBrigadeModalSubject(subject);
+                              }}
+                            >
+                              <UserPlus size={15} /> Создать бригаду
+                            </button>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}

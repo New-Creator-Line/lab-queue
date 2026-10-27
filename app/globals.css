@@ -1916,6 +1916,287 @@ html.dark .other-brigade-pill-btn:hover {
   border-color: #475569;
 }
 
+/* Brigades View Tab */
+.brigades-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brigades-subject-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.brigade-subject-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+html.dark .brigade-subject-card {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+.brigade-subject-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.brigade-subject-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.brigade-subject-title-wrap h2 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0 0 6px 0;
+  color: #0f172a;
+}
+
+html.dark .brigade-subject-title-wrap h2 {
+  color: #f8fafc;
+}
+
+.brigade-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+html.dark .brigade-badge-pill {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+.brigade-admin-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.brigade-admin-all-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+html.dark .brigade-admin-all-btn {
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+html.dark .brigade-admin-all-btn:hover {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+.brigade-subject-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.brigade-subject-my-team {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+html.dark .brigade-subject-my-team {
+  background: #131d33;
+  border-color: #1e293b;
+}
+
+.brigade-team-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.brigade-team-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+html.dark .brigade-team-title {
+  color: #f1f5f9;
+}
+
+.brigade-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.brigade-role-badge.is-leader {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+html.dark .brigade-role-badge {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+html.dark .brigade-role-badge.is-leader {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.brigade-members-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brigade-members-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+html.dark .brigade-members-label {
+  color: #94a3b8;
+}
+
+.brigade-subject-my-team .brigade-members-chips {
+  padding-left: 0;
+  margin-top: 0;
+}
+
+.member-me-tag {
+  opacity: 0.8;
+  font-weight: normal;
+  font-size: 10px;
+}
+
+.brigade-subject-no-team {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+html.dark .brigade-subject-no-team {
+  background: #131d33;
+  border-color: #334155;
+}
+
+.brigade-subject-no-team p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+html.dark .brigade-subject-no-team p {
+  color: #e2e8f0;
+}
+
+.brigade-subject-no-team small {
+  font-size: 12px;
+  color: #64748b;
+}
+
+html.dark .brigade-subject-no-team small {
+  color: #94a3b8;
+}
+
+.brigade-subject-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.brigade-card-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.brigade-card-action-btn.primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.brigade-card-action-btn.primary:hover {
+  background: #1d4ed8;
+}
+
+html.dark .brigade-card-action-btn.primary {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+html.dark .brigade-card-action-btn.primary:hover {
+  background: #2563eb;
+}
+
+@media (max-width: 650px) {
+  .brigades-subject-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Prevent Vercel Toolbar from covering inputs on preview */
 vercel-live-feedback,
 [data-vercel-toolbar],
