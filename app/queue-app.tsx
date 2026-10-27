@@ -318,6 +318,21 @@ function lessonEndTimestamp(date: string, lessonTime: string) {
   return Date.parse(`${date}T${endTime}:00+03:00`);
 }
 
+function formatEntryDisplayName(entry: {
+  displayName: string;
+  brigadeId?: number | null;
+  leaderDisplayName?: string | null;
+}): string {
+  if (!entry.brigadeId || !entry.leaderDisplayName) {
+    return entry.displayName;
+  }
+  const leaderLastName = entry.leaderDisplayName.trim().split(/\s+/)[0];
+  if (!leaderLastName || entry.displayName.toLowerCase().includes(leaderLastName.toLowerCase())) {
+    return entry.displayName;
+  }
+  return `${entry.displayName} (${leaderLastName})`;
+}
+
 function subscribeTheme(callback: () => void) {
   window.addEventListener("storage", callback);
   const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -1388,9 +1403,9 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                 return (
                                   <div className={isMe ? "actual-person is-me" : "actual-person"} key={entry.id}>
                                     <span className="actual-number">{entry.position}</span>
-                                    <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
+                                    <span className="actual-avatar">{formatEntryDisplayName(entry).slice(0, 1)}</span>
                                     <div>
-                                      <strong>{entry.displayName}</strong>
+                                      <strong>{formatEntryDisplayName(entry)}</strong>
                                       {isMe && <small>{entry.brigadeId ? "твоя бригада" : "это ты"}</small>}
                                     </div>
                                     {entry.position === 1 && (
@@ -1753,7 +1768,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                     <span className="person-pos check"><Check size={14} /></span>
                                     <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
                                     <div className="history-person-name">
-                                      <strong>{entry.displayName}</strong>
+                                      <strong>{formatEntryDisplayName(entry)}</strong>
                                       {entry.completedAt && (
                                         <small>
                                           Сдал(а) в {formatCompletedTime(entry.completedAt) ?? "—"}
@@ -1780,7 +1795,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                     <span className="person-pos">№ {entry.position}</span>
                                     <span className="actual-avatar">{entry.displayName.slice(0, 1)}</span>
                                     <div className="history-person-name">
-                                      <strong>{entry.displayName}</strong>
+                                      <strong>{formatEntryDisplayName(entry)}</strong>
                                       <small>Ожидал(а) очереди</small>
                                     </div>
                                     {entry.position === 1 && <span className="next-label">следующий</span>}

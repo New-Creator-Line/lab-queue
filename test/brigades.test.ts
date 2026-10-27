@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getBrigadeDisplayName } from "@/lib/queue-data";
 import { GROUP_ROSTER } from "@/lib/roster";
 
 describe("Brigade roster and rotation rules", () => {
@@ -231,5 +232,12 @@ describe("Brigade roster and rotation rules", () => {
     expect(entries[1].completedAt).toBe(completedAt);
     expect(entries[2].status).toBe("waiting"); // other entry untouched
     expect(lastServedTelegramId).toBe("user-1"); // leader registered in rotation
+  });
+
+  it("formats brigade queue display name with leader surname", () => {
+    expect(getBrigadeDisplayName("Бригада 1", "Амельченко Роман")).toBe("Бригада 1 (Амельченко)");
+    expect(getBrigadeDisplayName("Борисюк", "Амельченко Роман")).toBe("Борисюк (Амельченко)");
+    expect(getBrigadeDisplayName("Борисюк", "Борисюк Владислав")).toBe("Борисюк");
+    expect(getBrigadeDisplayName(null, "Амельченко Роман")).toBe("Амельченко Роман");
   });
 });

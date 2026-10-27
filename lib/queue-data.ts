@@ -66,6 +66,18 @@ export type ProcessedQueueDetails = {
   completedNames: string[];
 };
 
+export function getBrigadeDisplayName(
+  brigadeName: string | null | undefined,
+  leaderDisplayName: string | null | undefined,
+): string {
+  if (!brigadeName) return leaderDisplayName ?? "";
+  const leaderLastName = leaderDisplayName ? leaderDisplayName.trim().split(/\s+/)[0] : "";
+  if (!leaderLastName || brigadeName.toLowerCase().includes(leaderLastName.toLowerCase())) {
+    return brigadeName;
+  }
+  return `${brigadeName} (${leaderLastName})`;
+}
+
 function getQueueSortTimestamp(q: { lessonEndsAt: string | null; createdAt: string }): number {
   if (q.lessonEndsAt) {
     const parsed = Date.parse(q.lessonEndsAt);
@@ -383,7 +395,9 @@ export async function computeQueueSequence(
         waiting: waitingSlots.map((slot, index) => ({
           id: slot.primaryEntryId,
           telegramId: slot.leaderTelegramId,
-          displayName: slot.isBrigade ? slot.brigadeName! : slot.leaderDisplayName,
+          displayName: slot.isBrigade
+            ? getBrigadeDisplayName(slot.brigadeName, slot.leaderDisplayName)
+            : slot.leaderDisplayName,
           username: slot.leaderUsername,
           subgroup: slot.subgroup,
           status: "waiting",
@@ -398,7 +412,9 @@ export async function computeQueueSequence(
         served: servedSlots.map((slot, index) => ({
           id: slot.primaryEntryId,
           telegramId: slot.leaderTelegramId,
-          displayName: slot.isBrigade ? slot.brigadeName! : slot.leaderDisplayName,
+          displayName: slot.isBrigade
+            ? getBrigadeDisplayName(slot.brigadeName, slot.leaderDisplayName)
+            : slot.leaderDisplayName,
           username: slot.leaderUsername,
           subgroup: slot.subgroup,
           status: "served",
@@ -424,7 +440,7 @@ export async function computeQueueSequence(
         })),
         completedNames: servedSlots.map((slot) =>
           slot.isBrigade
-            ? slot.brigadeName!
+            ? getBrigadeDisplayName(slot.brigadeName, slot.leaderDisplayName)
             : slot.leaderDisplayName,
         ),
       });
