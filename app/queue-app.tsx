@@ -1495,10 +1495,7 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                     return (
                       <article className="subject-card brigade-card" key={subject.key}>
                         <div className="subject-top">
-                          <div className="type-tags">
-                            <span className="subject-code">{subject.abbrev}</span>
-                            <span className="brigade-badge"><Users size={12} /> Бригадная сдача</span>
-                          </div>
+                          <span className="subject-code">{subject.abbrev}</span>
                           {initialUser.isAdmin && (
                             <button
                               type="button"
@@ -1523,15 +1520,6 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
                                 <Users size={15} />
                                 <strong>{myBrigade.name || "Бригада"}</strong>
                               </div>
-                              <span className={`brigade-role-pill ${isLeader ? "is-leader" : ""}`}>
-                                {isLeader ? (
-                                  <>
-                                    <Crown size={11} /> Вы лидер
-                                  </>
-                                ) : (
-                                  "Вы участник"
-                                )}
-                              </span>
                             </div>
 
                             <div className="brigade-members-row">
@@ -1567,35 +1555,27 @@ function Dashboard({ initialUser, isPreview }: { initialUser: User; isPreview?: 
 
                         <div className="card-bottom">
                           {myBrigade ? (
-                            <>
-                              <span className="queue-count">
-                                <Users size={14} /> Лидер: {myBrigade.leaderDisplayName}
-                              </span>
-                              <button
-                                type="button"
-                                className={isLeader ? "join-button" : "joined-button"}
-                                onClick={() => {
-                                  setBrigadeModalIsAdmin(false);
-                                  setBrigadeModalSubject(subject);
-                                }}
-                              >
-                                <Users size={14} /> {isLeader ? "Управление составом" : "Состав бригады"}
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              className={isLeader ? "join-button" : "joined-button"}
+                              onClick={() => {
+                                setBrigadeModalIsAdmin(false);
+                                setBrigadeModalSubject(subject);
+                              }}
+                            >
+                              <Users size={14} /> {isLeader ? "Управление составом" : "Состав бригады"}
+                            </button>
                           ) : (
-                            <>
-                              <span className="queue-empty">Бригада не сформирована</span>
-                              <button
-                                type="button"
-                                className="join-button"
-                                onClick={() => {
-                                  setBrigadeModalIsAdmin(false);
-                                  setBrigadeModalSubject(subject);
-                                }}
-                              >
-                                <UserPlus size={14} /> Создать бригаду
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              className="join-button"
+                              onClick={() => {
+                                setBrigadeModalIsAdmin(false);
+                                setBrigadeModalSubject(subject);
+                              }}
+                            >
+                              <UserPlus size={14} /> Создать бригаду
+                            </button>
                           )}
                         </div>
                       </article>
