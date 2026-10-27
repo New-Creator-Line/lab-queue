@@ -48,7 +48,16 @@ export type SemesterSubject = {
   abbrev: string;
   name: string;
   lessonTypes: string[];
+  isWholeGroup?: boolean;
 };
+
+export function isWholeGroupSubject(subjectKey: string): boolean {
+  const normalized = subjectKey.toLowerCase();
+  return (
+    normalized.includes("тимау") ||
+    normalized.includes("теория и методы автоматического управления")
+  );
+}
 
 export type SubjectSummary = {
   key: string;
@@ -128,7 +137,7 @@ async function fetchSchedulePayload(): Promise<ApiSchedule> {
 }
 
 export function parseSemesterSubjects(payload: ApiSchedule): SemesterSubject[] {
-  const grouped = new Map<string, SemesterSubject>();
+  const grouped = new Map<string, SemesterSubject & { subgroups: Set<number> }>();
   const dayEntries = [
     ...Object.entries(payload.schedules ?? {}),
     ...Object.entries(payload.nextSchedules ?? {}),
@@ -144,17 +153,24 @@ export function parseSemesterSubjects(payload: ApiSchedule): SemesterSubject[] {
         abbrev: lesson.subject,
         name: lesson.subjectFullName,
         lessonTypes: [],
+        subgroups: new Set<number>(),
       };
       if (!current.lessonTypes.includes(lesson.lessonTypeAbbrev)) {
         current.lessonTypes.push(lesson.lessonTypeAbbrev);
       }
+      current.subgroups.add(lesson.numSubgroup);
       grouped.set(key, current);
     }
   }
 
-  return [...grouped.values()].sort((left, right) =>
-    left.name.localeCompare(right.name, "ru"),
-  );
+  return [...grouped.values()]
+    .map(({ subgroups, ...item }) => ({
+      ...item,
+      isWholeGroup:
+        isWholeGroupSubject(item.key) ||
+        (!subgroups.has(1) && !subgroups.has(2) && subgroups.has(0)),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name, "ru"));
 }
 
 export async function getAllSemesterSubjects(): Promise<SemesterSubject[]> {

@@ -6,6 +6,7 @@ import {
   getSubjectSettings,
   getUserAllBrigades,
   getUserBrigade,
+  isSubjectWholeGroup,
 } from "@/lib/brigades";
 import { requireCurrentUser } from "@/lib/telegram-auth";
 
@@ -20,11 +21,17 @@ export async function GET(request: Request) {
       return Response.json({ myBrigades });
     }
 
+    const isWholeGroup = isSubjectWholeGroup(subjectKey);
+
     const [hasBrigades, myBrigade, allBrigades, availableStudents] = await Promise.all([
       getSubjectSettings(subjectKey),
       getUserBrigade(subjectKey, user.telegramId),
-      getSubjectBrigades(subjectKey, user.isAdmin ? undefined : (user.subgroup ?? undefined)),
-      user.subgroup ? getAvailableStudentsForSubject(subjectKey, user.subgroup) : Promise.resolve([]),
+      getSubjectBrigades(subjectKey, user.isAdmin || isWholeGroup ? undefined : (user.subgroup ?? undefined)),
+      isWholeGroup
+        ? getAvailableStudentsForSubject(subjectKey, 0)
+        : user.subgroup
+          ? getAvailableStudentsForSubject(subjectKey, user.subgroup)
+          : Promise.resolve([]),
     ]);
 
     return Response.json({
@@ -32,6 +39,7 @@ export async function GET(request: Request) {
       myBrigade,
       allBrigades,
       availableStudents,
+      isWholeGroup,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Не удалось загрузить данные о бригадах";
@@ -45,10 +53,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const user = await requireCurrentUser();
-    if (!user.subgroup) {
-      return Response.json({ error: "Сначала выберите подгруппу в профиле" }, { status: 400 });
-    }
-
     const body = (await request.json()) as {
       subjectKey?: string;
       name?: string;
@@ -57,6 +61,11 @@ export async function POST(request: Request) {
 
     if (!body.subjectKey) {
       return Response.json({ error: "Не указан предмет" }, { status: 400 });
+    }
+
+    const isWholeGroup = isSubjectWholeGroup(body.subjectKey);
+    if (!user.subgroup && !isWholeGroup) {
+      return Response.json({ error: "Сначала выберите подгруппу в профиле" }, { status: 400 });
     }
 
     const rawName = body.name?.trim() || `Бригада (${user.displayName})`;
@@ -68,7 +77,7 @@ export async function POST(request: Request) {
       name,
       leaderTelegramId: user.telegramId,
       memberTelegramIds,
-      subgroup: user.subgroup,
+      subgroup: isWholeGroup ? 0 : (user.subgroup ?? 1),
     });
 
     return Response.json({ ok: true, brigade });

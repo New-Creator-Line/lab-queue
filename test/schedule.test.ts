@@ -81,15 +81,19 @@ describe("Schedule parsing for all semester subjects", () => {
     // 4. ТиМАУ — Теория и методы автоматического управления
     expect(subjects[0].abbrev).toBe("АМД");
     expect(subjects[0].lessonTypes).toEqual(["ЛР"]);
+    expect(subjects[0].isWholeGroup).toBe(false);
 
     expect(subjects[1].abbrev).toBe("ОМО");
     expect(subjects[1].lessonTypes).toEqual(["ЛР"]);
+    expect(subjects[1].isWholeGroup).toBe(false);
 
     expect(subjects[2].abbrev).toBe("СУБД");
     expect(subjects[2].lessonTypes).toEqual(["ЛР", "ПЗ"]);
+    expect(subjects[2].isWholeGroup).toBe(false);
 
     expect(subjects[3].abbrev).toBe("ТиМАУ");
     expect(subjects[3].lessonTypes).toEqual(["ПЗ"]);
+    expect(subjects[3].isWholeGroup).toBe(true);
   });
 
   it("filters out lectures (ЛК) and excluded subjects (физкультура, инф. час)", () => {

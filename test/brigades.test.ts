@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getBrigadeDisplayName } from "@/lib/queue-data";
 import { GROUP_ROSTER } from "@/lib/roster";
+import { isWholeGroupSubject } from "@/lib/schedule";
 
 describe("Brigade roster and rotation rules", () => {
   it("ensures roster members belong to consistent subgroups", () => {
@@ -141,21 +142,44 @@ describe("Brigade roster and rotation rules", () => {
     expect(slots[1].id).toBe("brigade-1");
   });
 
-  it("validates that mixed subgroup brigade creation is rejected", () => {
+  it("identifies whole-group subjects such as ТиМАУ", () => {
+    expect(isWholeGroupSubject("ТиМАУ::Теория и методы автоматического управления")).toBe(true);
+    expect(isWholeGroupSubject("ТиМАУ")).toBe(true);
+    expect(isWholeGroupSubject("теория и методы автоматического управления")).toBe(true);
+    expect(isWholeGroupSubject("АМД::Архитектура микропроцессорных систем")).toBe(false);
+    expect(isWholeGroupSubject("МПдИС::Микропроцессорные датчики и системы")).toBe(false);
+  });
+
+  it("validates that mixed subgroup brigade creation is rejected for regular subjects but allowed for whole-group subjects", () => {
     const memberSubgroup1 = GROUP_ROSTER.find((m) => m.subgroup === 1)!;
     const memberSubgroup2 = GROUP_ROSTER.find((m) => m.subgroup === 2)!;
 
-    function checkSubgroups(subgroup: number, members: Array<{ subgroup: number }>) {
-      for (const m of members) {
-        if (m.subgroup !== subgroup) {
-          throw new Error(`Студент не относится к вашей подгруппе (${subgroup})`);
+    function validateBrigadeMembers(
+      subjectKey: string,
+      subgroup: number,
+      members: Array<{ subgroup: number }>,
+    ) {
+      const isWholeGroup = isWholeGroupSubject(subjectKey) || subgroup === 0;
+      const targetSubgroup = isWholeGroup ? 0 : subgroup;
+      if (!isWholeGroup) {
+        for (const m of members) {
+          if (m.subgroup !== subgroup) {
+            throw new Error(`Студент не относится к вашей подгруппе (${subgroup})`);
+          }
         }
       }
+      return { ok: true, targetSubgroup };
     }
 
+    // Regular subject: mixed subgroups rejected
     expect(() =>
-      checkSubgroups(1, [memberSubgroup1, memberSubgroup2]),
+      validateBrigadeMembers("АМД", 1, [memberSubgroup1, memberSubgroup2]),
     ).toThrowError("Студент не относится к вашей подгруппе (1)");
+
+    // Whole-group subject (ТиМАУ): mixed subgroups allowed and assigned subgroup 0
+    const result = validateBrigadeMembers("ТиМАУ", 1, [memberSubgroup1, memberSubgroup2]);
+    expect(result.ok).toBe(true);
+    expect(result.targetSubgroup).toBe(0);
   });
 
   it("simulates atomic brigade queue join without duplicate entries", () => {

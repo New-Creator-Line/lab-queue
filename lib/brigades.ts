@@ -4,6 +4,11 @@ import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import { brigadeMembers, brigades, subjectSettings, users } from "@/db/schema";
 import { GROUP_ROSTER, normalizeTelegramUsername } from "@/lib/roster";
+import { isWholeGroupSubject } from "@/lib/schedule";
+
+export function isSubjectWholeGroup(subjectKey: string): boolean {
+  return isWholeGroupSubject(subjectKey);
+}
 
 export type BrigadeMemberDetail = {
   telegramId: string;
@@ -205,6 +210,7 @@ export async function getSubjectBrigades(
   subgroup?: number,
 ): Promise<BrigadeWithMembers[]> {
   const db = getDb();
+  const isWholeGroup = isSubjectWholeGroup(subjectKey);
 
   const query = db
     .select({
@@ -214,7 +220,7 @@ export async function getSubjectBrigades(
     .from(brigades)
     .innerJoin(users, eq(brigades.leaderTelegramId, users.telegramId))
     .where(
-      subgroup
+      !isWholeGroup && subgroup
         ? and(eq(brigades.subjectKey, subjectKey), eq(brigades.subgroup, subgroup))
         : eq(brigades.subjectKey, subjectKey),
     );
@@ -269,8 +275,13 @@ export async function getSubjectBrigades(
 
 export async function getAvailableStudentsForSubject(
   subjectKey: string,
-  subgroup: number,
-): Promise<Array<{ telegramId: string; displayName: string; username: string | null }>> {
+  subgroup?: number,
+): Promise<Array<{ telegramId: string; displayName: string; username: string | null; subgroup: number | null }>> {
+  const isWholeGroup = isSubjectWholeGroup(subjectKey) || subgroup === 0;
+  if (!isWholeGroup && !subgroup) {
+    return [];
+  }
+
   const db = getDb();
 
   // Find all telegramIds already in a brigade for this subject
@@ -281,27 +292,32 @@ export async function getAvailableStudentsForSubject(
 
   const occupiedSet = new Set(occupiedRows.map((r) => r.telegramId));
 
-  // Also match existing registered users in this subgroup
-  const registeredUsers = await db
-    .select()
-    .from(users)
-    .where(eq(users.subgroup, subgroup));
+  // Also match existing registered users in this subgroup or all if whole group
+  const registeredUsers = isWholeGroup
+    ? await db.select().from(users)
+    : await db.select().from(users).where(eq(users.subgroup, subgroup!));
 
   const registeredUserMap = new Map(
     registeredUsers.map((u) => [normalizeTelegramUsername(u.username), u]),
   );
 
-  // Return all roster members from this subgroup that are registered and not yet occupied
-  const available: Array<{ telegramId: string; displayName: string; username: string | null }> = [];
+  // Return all roster members that are registered and not yet occupied
+  const available: Array<{
+    telegramId: string;
+    displayName: string;
+    username: string | null;
+    subgroup: number | null;
+  }> = [];
 
   for (const rosterMember of GROUP_ROSTER) {
-    if (rosterMember.subgroup !== subgroup) continue;
+    if (!isWholeGroup && subgroup && rosterMember.subgroup !== subgroup) continue;
     const user = registeredUserMap.get(normalizeTelegramUsername(rosterMember.username));
     if (user && !occupiedSet.has(user.telegramId)) {
       available.push({
         telegramId: user.telegramId,
         displayName: user.displayName,
         username: user.username,
+        subgroup: user.subgroup ?? rosterMember.subgroup,
       });
     }
   }
@@ -317,6 +333,8 @@ export async function createOrUpdateBrigade(params: {
   subgroup: number;
 }): Promise<BrigadeWithMembers> {
   const { subjectKey, name, leaderTelegramId, subgroup } = params;
+  const isWholeGroup = isSubjectWholeGroup(subjectKey) || subgroup === 0;
+  const targetSubgroup = isWholeGroup ? 0 : subgroup;
   const db = getDb();
 
   // Deduplicate member IDs and ensure leader is always included
@@ -324,7 +342,7 @@ export async function createOrUpdateBrigade(params: {
   memberSet.add(leaderTelegramId);
   const allMemberIds = [...memberSet];
 
-  // Verify all members belong to the specified subgroup
+  // Verify all members belong to the specified subgroup (unless whole group)
   const memberUsers = await db
     .select()
     .from(users)
@@ -334,9 +352,11 @@ export async function createOrUpdateBrigade(params: {
     throw new Error("Некоторые выбранные участники не найдены в системе");
   }
 
-  for (const u of memberUsers) {
-    if (u.subgroup !== subgroup) {
-      throw new Error(`Студент ${u.displayName} не относится к вашей подгруппе (${subgroup})`);
+  if (!isWholeGroup) {
+    for (const u of memberUsers) {
+      if (u.subgroup !== subgroup) {
+        throw new Error(`Студент ${u.displayName} не относится к вашей подгруппе (${subgroup})`);
+      }
     }
   }
 
@@ -352,10 +372,10 @@ export async function createOrUpdateBrigade(params: {
       }
       brigadeId = existingUserBrigade.id;
 
-      // Update brigade name
+      // Update brigade name and ensure subgroup matches targetSubgroup
       await tx
         .update(brigades)
-        .set({ name })
+        .set({ name, subgroup: targetSubgroup })
         .where(eq(brigades.id, brigadeId));
 
       // Remove existing members that are no longer in the list
@@ -425,7 +445,7 @@ export async function createOrUpdateBrigade(params: {
         .insert(brigades)
         .values({
           subjectKey,
-          subgroup,
+          subgroup: targetSubgroup,
           name,
           leaderTelegramId,
         })

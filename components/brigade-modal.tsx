@@ -33,6 +33,7 @@ export type AvailableStudent = {
   telegramId: string;
   displayName: string;
   username: string | null;
+  subgroup?: number | null;
 };
 
 type BrigadeModalProps = {
@@ -65,6 +66,7 @@ export function BrigadeModal({
   const [myBrigade, setMyBrigade] = useState<BrigadeDetail | null>(null);
   const [allBrigades, setAllBrigades] = useState<BrigadeDetail[]>([]);
   const [availableStudents, setAvailableStudents] = useState<AvailableStudent[]>([]);
+  const [isWholeGroup, setIsWholeGroup] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [brigadeName, setBrigadeName] = useState("");
@@ -86,6 +88,7 @@ export function BrigadeModal({
         myBrigade?: BrigadeDetail | null;
         allBrigades?: BrigadeDetail[];
         availableStudents?: AvailableStudent[];
+        isWholeGroup?: boolean;
       };
       if (!res.ok) {
         throw new Error(data.error || "Ошибка загрузки");
@@ -93,6 +96,7 @@ export function BrigadeModal({
       setMyBrigade(data.myBrigade || null);
       setAllBrigades(data.allBrigades || []);
       setAvailableStudents(data.availableStudents || []);
+      setIsWholeGroup(Boolean(data.isWholeGroup));
 
       if (data.myBrigade) {
         setBrigadeName(data.myBrigade.name);
@@ -322,7 +326,7 @@ export function BrigadeModal({
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                             <strong style={{ fontSize: 14 }}>{brigade.name}</strong>
                             <span className="subgroup-tag" style={{ fontSize: 10 }}>
-                              {brigade.subgroup}-я подгруппа
+                              {brigade.subgroup === 0 ? "Вся группа" : `${brigade.subgroup}-я подгруппа`}
                             </span>
                           </div>
                           <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
@@ -384,6 +388,11 @@ export function BrigadeModal({
                           <strong style={{ fontSize: 13 }}>{m.displayName}</strong>
                           {m.telegramId === currentUser.telegramId && (
                             <span style={{ marginLeft: 6, fontSize: 11, color: "#2563eb", fontWeight: 700 }}>(вы)</span>
+                          )}
+                          {isWholeGroup && m.subgroup && (
+                            <span className="subgroup-tag" style={{ fontSize: 10, marginLeft: 6 }}>
+                              {m.subgroup}-я подгруппа
+                            </span>
                           )}
                         </div>
                       </div>
@@ -464,7 +473,9 @@ export function BrigadeModal({
 
               <div className="brigade-form-group">
                 <label>
-                  Выберите участников из вашей подгруппы ({currentUser.subgroup ?? 1}-я подгруппа):
+                  {isWholeGroup
+                    ? "Выберите участников из всей группы:"
+                    : `Выберите участников из вашей подгруппы (${currentUser.subgroup ?? 1}-я подгруппа):`}
                 </label>
                 <div className="member-select-list">
                   {/* Current user is always in the brigade */}
@@ -472,6 +483,11 @@ export function BrigadeModal({
                     <input type="checkbox" checked disabled />
                     <strong>{currentUser.displayName}</strong>
                     <span style={{ fontSize: 11, color: "#64748b" }}>(Вы, лидер)</span>
+                    {isWholeGroup && currentUser.subgroup && (
+                      <span className="subgroup-tag" style={{ fontSize: 10, marginLeft: 6 }}>
+                        {currentUser.subgroup}-я подгруппа
+                      </span>
+                    )}
                   </label>
 
                   {/* Existing members if editing */}
@@ -486,6 +502,11 @@ export function BrigadeModal({
                             onChange={() => toggleMember(m.telegramId)}
                           />
                           <span>{m.displayName}</span>
+                          {isWholeGroup && m.subgroup && (
+                            <span className="subgroup-tag" style={{ fontSize: 10, marginLeft: 6 }}>
+                              {m.subgroup}-я подгруппа
+                            </span>
+                          )}
                         </label>
                       ))}
 
@@ -504,12 +525,19 @@ export function BrigadeModal({
                           onChange={() => toggleMember(student.telegramId)}
                         />
                         <span>{student.displayName}</span>
+                        {isWholeGroup && student.subgroup && (
+                          <span className="subgroup-tag" style={{ fontSize: 10, marginLeft: 6 }}>
+                            {student.subgroup}-я подгруппа
+                          </span>
+                        )}
                       </label>
                     ))}
 
                   {availableStudents.length === 0 && (!isEditing || myBrigade?.members.length === 1) && (
                     <div style={{ padding: "10px", fontSize: 13, color: "#64748b", textAlign: "center" }}>
-                      Все одногруппники вашей подгруппы уже распределены по бригадам
+                      {isWholeGroup
+                        ? "Все одногруппники уже распределены по бригадам"
+                        : "Все одногруппники вашей подгруппы уже распределены по бригадам"}
                     </div>
                   )}
                 </div>
